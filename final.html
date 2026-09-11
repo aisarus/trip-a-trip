@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#08111f" />
+  <meta name="color-scheme" content="dark" />
+  <title>Trip-a-Trip · Romania Live</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://tile.openstreetmap.org" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="final.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="eyebrow">ROMANIA · LIVE TRIP</div><b>Trip-a-Trip</b><small id="roomLabel">подключение…</small></div>
+      <div class="top-actions"><span class="presence" id="watchers">0 смотрят</span><button class="icon-btn" id="shareBtn" aria-label="Поделиться">↗</button></div>
+    </header>
+
+    <main class="views">
+      <section class="view active" id="view-now">
+        <div class="hero card">
+          <div class="hero-line"><span class="live-pill"><i id="brokerDot"></i><span id="brokerText">Подключаюсь…</span></span><span id="weatherBadge">—° · погода</span></div>
+          <h1 id="nowTitle">Путешествие начинается</h1>
+          <p id="nowSubtitle">Ждём первый GPS-сигнал.</p>
+          <div class="stat-grid" id="nowStats"></div>
+          <div class="target-card" id="currentTarget">🎯 Цель пока не выбрана</div>
+        </div>
+
+        <div class="section-head"><h2>Сейчас</h2><button class="text-btn" id="postcardBtn">Сделать открытку</button></div>
+        <div class="traveler-grid" id="people"><div class="empty">Жду GPS участников…</div></div>
+
+        <div class="quick-row" id="quickRow">
+          <button class="quick" id="photoBtn">📷<span>Фото</span></button>
+          <button class="quick" id="checkinBtn">✅<span>Мы ок</span></button>
+          <button class="quick" id="trackBtn">◎<span>Мой GPS</span></button>
+          <button class="quick danger" id="sosBtn">🚨<span>SOS</span></button>
+        </div>
+        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+
+        <div class="section-head"><h2>Последний момент</h2><button class="text-btn" data-tab="feed">Вся лента</button></div>
+        <div id="latestMoment" class="card latest"><div class="empty">Фотографии и check-in появятся здесь.</div></div>
+
+        <div class="section-head"><h2>Миссии зрителей</h2><button class="text-btn" data-tab="plan">Все</button></div>
+        <div id="missionPreview" class="stack"><div class="empty">Пока никто ничего не загадал.</div></div>
+      </section>
+
+      <section class="view" id="view-map">
+        <div class="map-wrap">
+          <div id="map"></div>
+          <div class="map-top"><button class="glass-btn" id="fitBtn">⌖ Все</button><button class="glass-btn" id="liveMapBtn">LIVE</button></div>
+          <div class="timeline glass">
+            <div class="timeline-head"><b id="timeLabel">LIVE</b><button class="mini" id="timelineLiveBtn">Вернуться в LIVE</button></div>
+            <input id="timeRange" type="range" min="0" max="100" value="100" />
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-feed">
+        <div class="section-head sticky-title"><div><div class="eyebrow">LIVE JOURNAL</div><h2>Лента путешествия <span id="feedCount"></span></h2></div><button class="pill-btn" id="feedPhotoBtn">＋ Фото</button></div>
+        <div class="composer card"><input id="commentInput" maxlength="220" placeholder="Написать путешественникам…" /><button id="commentBtn">Отправить</button></div>
+        <div id="feed" class="feed"><div class="empty">Здесь появятся фотографии, комментарии и события.</div></div>
+      </section>
+
+      <section class="view" id="view-plan">
+        <div class="section-head sticky-title"><div><div class="eyebrow">ROUTE</div><h2>Куда дальше</h2></div><button class="pill-btn" id="waypointBtn">＋ Точка</button></div>
+        <div id="waypointHint" class="hint hidden">Ткни по карте, чтобы поставить новую точку.</div>
+        <div id="waypoints" class="stack"><div class="empty">Маршрут пока пуст.</div></div>
+
+        <div class="section-head"><div><div class="eyebrow">VIEWER MISSIONS</div><h2>Челленджи</h2></div></div>
+        <div class="composer card"><input id="missionInput" maxlength="120" placeholder="Например: сфоткайте самый абсурдный сувенир" /><button id="missionBtn">Загадать</button></div>
+        <div id="missions" class="stack"><div class="empty">Миссий ещё нет.</div></div>
+      </section>
+
+      <section class="view" id="view-days">
+        <div class="section-head sticky-title"><div><div class="eyebrow">TRIP ARCHIVE</div><h2>Дни путешествия</h2></div><button class="pill-btn" id="daysPostcardBtn">Открытка</button></div>
+        <div id="days" class="days"><div class="empty">Сводка появится после первых GPS-точек.</div></div>
+      </section>
+    </main>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="now"><span>●</span>Сейчас</button>
+      <button class="tab" data-tab="map"><span>⌖</span>Карта</button>
+      <button class="tab" data-tab="feed"><span>◫</span>Лента</button>
+      <button class="tab" data-tab="plan"><span>◇</span>План</button>
+      <button class="tab" data-tab="days"><span>▤</span>Дни</button>
+    </nav>
+  </div>
+
+  <div class="modal show" id="joinModal">
+    <div class="modal-card">
+      <div class="eyebrow">JOIN TRIP</div><h2>Как тебя показывать?</h2><p>Имя видно только людям с этой ссылкой комнаты.</p>
+      <input id="nameInput" maxlength="24" placeholder="Имя" autocomplete="name" />
+      <div class="modal-actions"><button class="primary" id="joinTravel">Я путешествую</button><button class="secondary" id="joinWatch">Я смотрю</button></div>
+    </div>
+  </div>
+
+  <div class="modal" id="postcardModal">
+    <div class="modal-card postcard-modal"><div class="modal-title"><h2>Live postcard</h2><button class="icon-btn" id="postcardClose">×</button></div><img id="postcardPreview" alt="Trip postcard" /><div class="modal-actions"><button class="primary" id="postcardShare">Поделиться</button><button class="secondary" id="postcardSave">Сохранить</button></div></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
+  <script src="final.js"></script>
+</body>
+</html>
