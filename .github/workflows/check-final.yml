@@ -1,0 +1,17 @@
+name: Check complete Trip-a-Trip
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: node --check final.js
+      - name: Check complete web bundle
+        run: test -s final.html && test -s final.css && test -s final.js
