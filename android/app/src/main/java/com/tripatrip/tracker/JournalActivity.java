@@ -17,6 +17,11 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.IOException;
+
 public class JournalActivity extends Activity {
     private static final int FILE_CHOOSER = 301;
     private static final String DEFAULT_ROOM = "755588edf78b6446a2b301f6a4846f4e";
@@ -24,6 +29,7 @@ public class JournalActivity extends Activity {
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
+    private Uri cameraUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +50,8 @@ public class JournalActivity extends Activity {
         s.setGeolocationEnabled(true);
         s.setAllowFileAccess(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
 
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
@@ -58,21 +66,22 @@ public class JournalActivity extends Activity {
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> uploadMsg, FileChooserParams fileChooserParams) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = uploadMsg;
+                cameraUri = null;
 
                 Intent gallery = new Intent(Intent.ACTION_GET_CONTENT);
                 gallery.addCategory(Intent.CATEGORY_OPENABLE);
                 gallery.setType("image/*");
 
-                Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 Intent chooser = Intent.createChooser(gallery, "Добавить фото в Trip-a-Trip");
-                if (camera.resolveActivity(getPackageManager()) != null) {
-                    chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camera});
-                }
+                Intent camera = buildCameraIntent();
+                if (camera != null) chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camera});
+
                 try {
                     startActivityForResult(chooser, FILE_CHOOSER);
                     return true;
                 } catch (ActivityNotFoundException e) {
                     fileCallback = null;
+                    cameraUri = null;
                     Toast.makeText(JournalActivity.this, "Не удалось открыть выбор фото", Toast.LENGTH_SHORT).show();
                     return false;
                 }
@@ -86,20 +95,34 @@ public class JournalActivity extends Activity {
         webView.loadUrl(url);
     }
 
+    private Intent buildCameraIntent() {
+        Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (camera.resolveActivity(getPackageManager()) == null) return null;
+        try {
+            File photo = File.createTempFile("trip_a_trip_", ".jpg", getCacheDir());
+            cameraUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", photo);
+            camera.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+            camera.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            return camera;
+        } catch (IOException e) {
+            cameraUri = null;
+            return null;
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != FILE_CHOOSER || fileCallback == null) return;
+
         Uri[] result = null;
         if (resultCode == RESULT_OK) {
-            if (data != null && data.getData() != null) {
-                result = new Uri[]{data.getData()};
-            } else if (data != null && data.getExtras() != null && data.getExtras().get("data") != null) {
-                Toast.makeText(this, "Камера вернула превью. Лучше выбери фото из галереи после съёмки.", Toast.LENGTH_LONG).show();
-            }
+            if (data != null && data.getData() != null) result = new Uri[]{data.getData()};
+            else if (cameraUri != null) result = new Uri[]{cameraUri};
         }
         fileCallback.onReceiveValue(result);
         fileCallback = null;
+        cameraUri = null;
     }
 
     @Override
@@ -110,6 +133,7 @@ public class JournalActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (fileCallback != null) fileCallback.onReceiveValue(null);
         if (webView != null) {
             webView.stopLoading();
             webView.destroy();
