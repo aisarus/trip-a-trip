@@ -8,9 +8,13 @@
 
     <application
         android:allowBackup="false"
-        android:label="Trip-a-Trip Tracker"
+        android:label="Trip-a-Trip Romania"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".JournalActivity"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"
