@@ -25,7 +25,7 @@ import java.io.IOException;
 public class JournalActivity extends Activity {
     private static final int FILE_CHOOSER = 301;
     private static final String DEFAULT_ROOM = "755588edf78b6446a2b301f6a4846f4e";
-    private static final String JOURNAL_URL = "https://raw.githack.com/aisarus/trip-a-trip/c16c63c437ec7effb7d6a0a49aa89dff7c173de7/final.html";
+    private static final String JOURNAL_URL = "https://raw.githack.com/aisarus/trip-a-trip/main/final.html";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
