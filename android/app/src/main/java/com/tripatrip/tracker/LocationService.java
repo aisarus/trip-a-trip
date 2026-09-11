@@ -37,6 +37,7 @@ public class LocationService extends Service implements LocationListener {
     private static final String CHANNEL_ID = "trip_a_trip_location";
     private static final int NOTIFICATION_ID = 7401;
     private static final String BROKER = "ssl://broker.emqx.io:8883";
+    private static final int MAX_TRAIL_POINTS = 1000;
 
     private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
     private LocationManager locationManager;
@@ -149,11 +150,12 @@ public class LocationService extends Service implements LocationListener {
             pos.put("ts", now);
 
             JSONObject payload = new JSONObject();
-            payload.put("v", 2);
+            payload.put("v", 3);
             payload.put("id", deviceId);
             payload.put("name", displayName);
             payload.put("ts", now);
-            payload.put("battery", getBatteryPercent());
+            int battery = getBatteryPercent();
+            if (battery >= 0) payload.put("battery", battery);
             payload.put("pos", pos);
             payload.put("trail", trail);
 
@@ -190,7 +192,8 @@ public class LocationService extends Service implements LocationListener {
             payload.put("author", displayName);
             payload.put("text", text);
             payload.put("ts", now);
-            payload.put("battery", getBatteryPercent());
+            int battery = getBatteryPercent();
+            if (battery >= 0) payload.put("battery", battery);
             String lat = prefs.getString("lastLat", null);
             String lng = prefs.getString("lastLng", null);
             if (lat != null && lng != null) {
@@ -227,15 +230,18 @@ public class LocationService extends Service implements LocationListener {
                 float[] result = new float[1];
                 Location.distanceBetween(last.getDouble("lat"), last.getDouble("lng"),
                         location.getLatitude(), location.getLongitude(), result);
-                append = result[0] >= 8f;
+                long lastTs = last.optLong("ts", 0L);
+                append = result[0] >= 10f || now - lastTs >= 45000L;
             }
             if (append) {
                 JSONObject point = new JSONObject();
                 point.put("lat", location.getLatitude());
                 point.put("lng", location.getLongitude());
                 point.put("ts", now);
+                if (location.hasAltitude()) point.put("altitude", location.getAltitude());
+                if (location.hasAccuracy()) point.put("accuracy", location.getAccuracy());
                 trail.put(point);
-                while (trail.length() > 260) trail.remove(0);
+                while (trail.length() > MAX_TRAIL_POINTS) trail.remove(0);
                 prefs.edit().putString("trail", trail.toString()).apply();
             }
         } catch (Exception ignored) { }
