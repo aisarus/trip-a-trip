@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0c1220" />
+  <title>Trip-a-Trip · Live GPS</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://tile.openstreetmap.org" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#0a0f1b;--panel:rgba(15,23,42,.86);--line:rgba(255,255,255,.1);--text:#f8fafc;--muted:#94a3b8;--accent:#7dd3fc;--good:#86efac;--bad:#fca5a5}
+    *{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--text);overflow:hidden} button,input{font:inherit}
+    #map{position:fixed;inset:0;background:#111827}.leaflet-control-attribution{font-size:10px;background:rgba(10,15,27,.7)!important;color:#cbd5e1}.leaflet-control-attribution a{color:#e2e8f0}
+    .scrim{pointer-events:none;position:fixed;inset:0;background:linear-gradient(180deg,rgba(5,10,18,.74) 0,transparent 28%,transparent 60%,rgba(5,10,18,.84) 100%);z-index:500}
+    .top{position:fixed;z-index:700;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;pointer-events:none}
+    .brand,.share{pointer-events:auto;background:var(--panel);backdrop-filter:blur(18px);border:1px solid var(--line);box-shadow:0 12px 35px rgba(0,0,0,.25)}
+    .brand{border-radius:18px;padding:10px 13px;min-width:0}.brand b{display:block;font-size:14px;letter-spacing:.01em}.brand small{display:block;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56vw}
+    .share{border-radius:16px;color:var(--text);border:1px solid var(--line);padding:11px 13px;cursor:pointer}
+    .sheet{position:fixed;z-index:700;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 20px 50px rgba(0,0,0,.36);max-height:46vh;overflow:auto}
+    .row{display:flex;align-items:center;gap:8px}.grow{flex:1;min-width:0}.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}.dot{width:8px;height:8px;border-radius:999px;background:#64748b;box-shadow:0 0 0 4px rgba(100,116,139,.12)}.dot.on{background:var(--good);box-shadow:0 0 0 4px rgba(134,239,172,.12)}.dot.err{background:var(--bad)}
+    .actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.primary,.secondary{border:0;border-radius:16px;padding:13px 14px;font-weight:700;cursor:pointer}.primary{background:#f8fafc;color:#0f172a}.primary.active{background:#ef4444;color:white}.secondary{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--line)}
+    .people{display:grid;gap:8px;margin-top:12px}.person{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.035)}.swatch{width:10px;height:28px;border-radius:999px}.person strong{font-size:13px;display:block}.person small{display:block;color:var(--muted);margin-top:2px}.meta{margin-left:auto;text-align:right;font-size:12px;color:#cbd5e1}
+    .empty{color:var(--muted);font-size:13px;padding:7px 2px}.notice{font-size:11px;color:#94a3b8;line-height:1.35;margin-top:10px}
+    .modal{position:fixed;z-index:1000;inset:0;background:rgba(2,6,23,.72);display:none;align-items:center;justify-content:center;padding:18px}.modal.show{display:flex}.card{width:min(440px,100%);background:#101827;border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.5)}.card h1{font-size:22px;margin:0 0 6px}.card p{color:var(--muted);line-height:1.45;margin:0 0 14px}.card input{width:100%;background:#0b1220;color:white;border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:13px 14px;outline:none}.card .buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.card button{border-radius:14px;padding:12px;border:0;font-weight:700;cursor:pointer}.start{background:#f8fafc;color:#0f172a}.watch{background:rgba(255,255,255,.08);color:white;border:1px solid var(--line)!important}
+    .leaflet-tooltip.member-tip{background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.14);color:white;border-radius:10px;box-shadow:none;font-weight:700}.leaflet-tooltip-top.member-tip:before{border-top-color:rgba(15,23,42,.92)}
+    @media (max-width:480px){.sheet{padding:12px;border-radius:22px}.share{padding:10px 12px}.brand{padding:9px 12px}.actions{grid-template-columns:1fr auto}}
+  </style>
+</head>
+<body>
+  <div id="map"></div><div class="scrim"></div>
+  <div class="top">
+    <div class="brand"><b>Trip-a-Trip · Romania</b><small id="roomLabel">подключение…</small></div>
+    <button class="share" id="shareBtn">Поделиться</button>
+  </div>
+  <section class="sheet">
+    <div class="row"><div class="grow"><div class="status"><span class="dot" id="brokerDot"></span><span id="brokerText">Подключаю карту…</span></div></div><button class="secondary" id="fitBtn">⌖ Все</button></div>
+    <div class="actions"><button class="primary" id="trackBtn">Включить мой GPS</button><button class="secondary" id="centerBtn">◎ Я</button></div>
+    <div class="people" id="people"><div class="empty">Жду координаты участников…</div></div>
+    <div class="notice">GPS передаётся только пока браузер реально даёт странице геолокацию. Для надёжности держите эту вкладку открытой. Канал зашифрован WSS, но используется публичный MQTT-брокер — не публикуйте ссылку комнаты открыто.</div>
+  </section>
+
+  <div class="modal" id="joinModal">
+    <div class="card">
+      <h1>Кто ты?</h1>
+      <p>Для передачи своего GPS введи имя. Если хочешь только смотреть маршрут — жми «Только смотреть».</p>
+      <input id="nameInput" maxlength="24" placeholder="Например, Сеня" autocomplete="name" />
+      <div class="buttons"><button class="start" id="joinShare">Делиться GPS</button><button class="watch" id="joinWatch">Только смотреть</button></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
+  <script>
+    (() => {
+      const qs = new URLSearchParams(location.search);
+      let room = qs.get('room');
+      if (!room) {
+        room = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/-/g,'');
+        qs.set('room', room);
+        history.replaceState(null, '', `${location.pathname}?${qs.toString()}`);
+      }
+      const roomShort = room.slice(0,8);
+      const baseTopic = `trip-a-trip/v1/${room}`;
+      const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
+      const clientId = `tat_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+      const deviceId = localStorage.getItem(`tat-device-${room}`) || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+      localStorage.setItem(`tat-device-${room}`, deviceId);
+
+      const els = {
+        brokerDot: document.getElementById('brokerDot'), brokerText: document.getElementById('brokerText'), roomLabel: document.getElementById('roomLabel'),
+        people: document.getElementById('people'), trackBtn: document.getElementById('trackBtn'), shareBtn: document.getElementById('shareBtn'), fitBtn: document.getElementById('fitBtn'), centerBtn: document.getElementById('centerBtn'),
+        modal: document.getElementById('joinModal'), name: document.getElementById('nameInput'), joinShare: document.getElementById('joinShare'), joinWatch: document.getElementById('joinWatch')
+      };
+      els.roomLabel.textContent = `комната ${roomShort}`;
+
+      const map = L.map('map', {zoomControl:false, attributionControl:true}).setView([45.6,25.5], 7);
+      L.control.zoom({position:'topright'}).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+
+      const members = new Map();
+      let tracking = false, watchId = null, myName = localStorage.getItem(`tat-name-${room}`) || '', wakeLock = null, lastPublishAt = 0, lastPublished = null;
+      let trail = JSON.parse(localStorage.getItem(`tat-trail-${room}-${deviceId}`) || '[]');
+      if (!Array.isArray(trail)) trail = [];
+
+      const palette = ['#38bdf8','#fb7185','#a78bfa','#4ade80','#facc15','#fb923c','#2dd4bf','#e879f9'];
+      const colorFor = id => { let h=0; for (const c of id) h=((h<<5)-h)+c.charCodeAt(0); return palette[Math.abs(h)%palette.length]; };
+      const fmtAge = ts => { const s=Math.max(0,Math.floor((Date.now()-ts)/1000)); return s<10?'сейчас':s<60?`${s}с назад`:s<3600?`${Math.floor(s/60)}м назад`:`${Math.floor(s/3600)}ч назад`; };
+      const distM = (a,b) => { if(!a||!b)return Infinity; const R=6371e3,p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,dp=(b.lat-a.lat)*Math.PI/180,dl=(b.lng-a.lng)*Math.PI/180; const x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2; return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); };
+
+      function setBroker(state,text){ els.brokerDot.className='dot'+(state==='on'?' on':state==='err'?' err':''); els.brokerText.textContent=text; }
+      function memberTopic(id){ return `${baseTopic}/member/${id}`; }
+
+      function upsertMember(payload){
+        if(!payload || !payload.id || !payload.pos) return;
+        let m = members.get(payload.id);
+        const color = colorFor(payload.id);
+        if(!m){
+          const line=L.polyline([], {color,weight:4,opacity:.85}).addTo(map);
+          const dot=L.circleMarker([payload.pos.lat,payload.pos.lng], {radius:9,color:'#fff',weight:3,fillColor:color,fillOpacity:1}).addTo(map);
+          dot.bindTooltip(payload.name || 'Участник', {permanent:true,direction:'top',offset:[0,-10],className:'member-tip'});
+          m={line,dot,color,payload:null}; members.set(payload.id,m);
+        }
+        m.payload=payload;
+        const points=(payload.trail||[]).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)).map(p=>[p.lat,p.lng]);
+        if(points.length) m.line.setLatLngs(points);
+        m.dot.setLatLng([payload.pos.lat,payload.pos.lng]);
+        m.dot.setTooltipContent(payload.name || 'Участник');
+        renderPeople();
+      }
+
+      function renderPeople(){
+        if(!members.size){ els.people.innerHTML='<div class="empty">Жду координаты участников…</div>'; return; }
+        els.people.innerHTML='';
+        [...members.values()].sort((a,b)=>(b.payload?.ts||0)-(a.payload?.ts||0)).forEach(m=>{
+          const p=m.payload, el=document.createElement('div'); el.className='person';
+          const speed = Number.isFinite(p.pos.speed) && p.pos.speed>=0.5 ? ` · ${(p.pos.speed*3.6).toFixed(0)} км/ч` : '';
+          const acc = Number.isFinite(p.pos.accuracy) ? `±${Math.round(p.pos.accuracy)} м` : '';
+          el.innerHTML=`<span class="swatch" style="background:${m.color}"></span><div class="grow"><strong>${escapeHtml(p.name||'Участник')}${p.id===deviceId?' · вы':''}</strong><small>${fmtAge(p.ts)}${speed}</small></div><div class="meta">${acc}<br>${p.trail?.length||0} точек</div>`;
+          el.onclick=()=>map.flyTo([p.pos.lat,p.pos.lng], Math.max(map.getZoom(),15), {duration:.7});
+          els.people.appendChild(el);
+        });
+      }
+      function escapeHtml(s){ return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+      setInterval(renderPeople, 5000);
+
+      const client = mqtt.connect(brokerUrl, {clientId,clean:true,connectTimeout:10000,reconnectPeriod:2500,keepalive:30});
+      client.on('connect',()=>{ setBroker('on','Онлайн · GPS-канал подключён'); client.subscribe(`${baseTopic}/member/+`, {qos:0}); });
+      client.on('reconnect',()=>setBroker('', 'Переподключаю GPS-канал…'));
+      client.on('offline',()=>setBroker('err','Нет связи с GPS-каналом'));
+      client.on('error',()=>setBroker('err','Ошибка GPS-канала'));
+      client.on('message',(topic,buf)=>{ try{ upsertMember(JSON.parse(buf.toString())); }catch(e){} });
+
+      async function requestWakeLock(){ try{ if('wakeLock' in navigator && !wakeLock) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
+      document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && tracking) requestWakeLock(); });
+
+      function startTracking(){
+        if(!navigator.geolocation){ alert('Этот браузер не поддерживает GPS.'); return; }
+        if(!myName){ showJoin(); return; }
+        tracking=true; els.trackBtn.textContent='Остановить мой GPS'; els.trackBtn.classList.add('active'); requestWakeLock();
+        watchId=navigator.geolocation.watchPosition(onPosition, err=>{
+          const msg = err.code===1?'Доступ к геолокации запрещён':err.code===2?'GPS сейчас недоступен':'GPS не ответил вовремя';
+          setBroker('err',msg); tracking=false; els.trackBtn.textContent='Включить мой GPS'; els.trackBtn.classList.remove('active');
+        }, {enableHighAccuracy:true,maximumAge:8000,timeout:20000});
+      }
+      function stopTracking(){ if(watchId!==null) navigator.geolocation.clearWatch(watchId); watchId=null; tracking=false; els.trackBtn.textContent='Включить мой GPS'; els.trackBtn.classList.remove('active'); if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;} }
+      function onPosition(g){
+        const p={lat:g.coords.latitude,lng:g.coords.longitude,accuracy:g.coords.accuracy,altitude:g.coords.altitude,speed:g.coords.speed,heading:g.coords.heading,ts:g.timestamp||Date.now()};
+        const now=Date.now(), moved=distM(lastPublished,p);
+        if(lastPublished && moved<8 && now-lastPublishAt<10000) return;
+        lastPublished=p; lastPublishAt=now;
+        const prev=trail[trail.length-1]; if(!prev || distM(prev,p)>=8 || now-prev.ts>=15000) trail.push({lat:p.lat,lng:p.lng,ts:now});
+        if(trail.length>500) trail=trail.slice(-500);
+        localStorage.setItem(`tat-trail-${room}-${deviceId}`, JSON.stringify(trail));
+        const payload={v:1,id:deviceId,name:myName,ts:now,pos:p,trail:trail.slice(-220)};
+        client.publish(memberTopic(deviceId), JSON.stringify(payload), {qos:0,retain:true}); upsertMember(payload);
+      }
+
+      function fitAll(){ const pts=[]; members.forEach(m=>{ if(m.payload?.pos)pts.push([m.payload.pos.lat,m.payload.pos.lng]); }); if(!pts.length)return; if(pts.length===1) map.flyTo(pts[0],16); else map.fitBounds(pts,{padding:[50,50],maxZoom:15}); }
+      function centerMe(){ const m=members.get(deviceId); if(m?.payload?.pos)map.flyTo([m.payload.pos.lat,m.payload.pos.lng],16,{duration:.7}); else if(!tracking)startTracking(); }
+      async function shareRoom(){
+        const url=location.href; const data={title:'Trip-a-Trip · Live GPS',text:'Смотри наш маршрут и геопозицию в Румынии',url};
+        try{ if(navigator.share)await navigator.share(data); else{await navigator.clipboard.writeText(url); toast('Ссылка скопирована');} }catch(e){}
+      }
+      function toast(text){ const old=els.shareBtn.textContent; els.shareBtn.textContent=text; setTimeout(()=>els.shareBtn.textContent=old,1600); }
+      function showJoin(){ els.name.value=myName; els.modal.classList.add('show'); setTimeout(()=>els.name.focus(),50); }
+      function hideJoin(){ els.modal.classList.remove('show'); }
+
+      els.trackBtn.onclick=()=>tracking?stopTracking():startTracking(); els.centerBtn.onclick=centerMe; els.fitBtn.onclick=fitAll; els.shareBtn.onclick=shareRoom;
+      els.joinWatch.onclick=()=>{hideJoin();};
+      els.joinShare.onclick=()=>{ const n=els.name.value.trim(); if(!n){els.name.focus();return;} myName=n; localStorage.setItem(`tat-name-${room}`,n); hideJoin(); startTracking(); };
+      if(!myName) setTimeout(showJoin,500);
+    })();
+  </script>
+</body>
+</html>
