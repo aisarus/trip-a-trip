@@ -12,6 +12,8 @@ jobs:
         with:
           node-version: '22'
       - name: Check JavaScript syntax
-        run: node --check final.js
+        run: node --check final.js && node --check trip-plan.js
+      - name: Check itinerary JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('trip-data.json','utf8')); console.log('trip-data.json OK')"
       - name: Check complete web bundle
-        run: test -s final.html && test -s final.css && test -s final.js
+        run: test -s final.html && test -s final.css && test -s final.js && test -s trip-plan.js && test -s trip-data.json
