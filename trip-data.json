@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "trip": {
+    "title": "Румыния · 11–18 сентября 2026",
+    "subtitle": "2 человека · без машины · поезда/автобусы/канатки · хайки по погоде",
+    "start": "2026-09-11",
+    "end": "2026-09-18",
+    "notes": "12 сентября забронирована Синая; с 13 сентября основная база — Брашов. Горные дни 14–17 можно переставлять местами по погоде."
+  },
+  "days": [
+    {
+      "date": "2026-09-11",
+      "title": "Прилёт · Бухарест",
+      "base": "Бухарест",
+      "mode": "fixed",
+      "items": [
+        {"id":"sep11-arrive-otp","time":"19:30","title":"Прилететь в Bucharest OTP","type":"flight","required":true,"lat":44.5711,"lng":26.0850},
+        {"id":"sep11-night-bucharest","title":"Добраться до ночёвки в Бухаресте","type":"transport","required":true},
+        {"id":"sep11-ready-morning","title":"Подготовить вещи к раннему выезду в Синаю","type":"prep"}
+      ]
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Синая · день без спешки",
+      "base": "Синая",
+      "mode": "fixed",
+      "items": [
+        {"id":"sep12-bucharest-sinaia","time":"утро","title":"Поезд Бухарест → Синая","type":"transport","required":true,"note":"Через Gara de Nord; оставить запас на вокзал.","lat":45.3529,"lng":25.5514},
+        {"id":"sep12-checkin-sinaia","title":"Заселиться / оставить вещи в Синае","type":"stay","required":true},
+        {"id":"sep12-peles","title":"Замок Пелеш","type":"place","lat":45.3600,"lng":25.5426},
+        {"id":"sep12-monastery","title":"Монастырь Синая","type":"place","lat":45.3508,"lng":25.5494},
+        {"id":"sep12-walk","title":"Прогулка по Синае без жёсткого тайминга","type":"walk"},
+        {"id":"sep12-pack-brasov","title":"Подготовиться к переезду в Брашов утром","type":"prep"}
+      ]
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Переезд · Брашов",
+      "base": "Брашов",
+      "mode": "fixed",
+      "items": [
+        {"id":"sep13-checkout-sinaia","title":"Выселиться из Синаи","type":"stay","required":true},
+        {"id":"sep13-sinaia-brasov","title":"Поезд Синая → Брашов","type":"transport","required":true,"lat":45.6606,"lng":25.6149},
+        {"id":"sep13-checkin-brasov","title":"Заселиться в Брашове — основная база","type":"stay","required":true},
+        {"id":"sep13-old-town","title":"Старый город / Piața Sfatului","type":"place","lat":45.6427,"lng":25.5887},
+        {"id":"sep13-easy-evening","title":"Лёгкий вечер и проверить погоду на горные дни","type":"weather"}
+      ]
+    },
+    {
+      "date": "2026-09-14",
+      "title": "Горный слот A · Piatra Craiului",
+      "base": "Брашов",
+      "mode": "weather",
+      "items": [
+        {"id":"sep14-weather","title":"Утром проверить погоду и состояние троп","type":"weather","required":true},
+        {"id":"sep14-zarnesti","title":"Добраться Брашов → Zărnești","type":"transport","lat":45.5607,"lng":25.3166},
+        {"id":"sep14-craiului-hike","title":"Дневной хайк Piatra Craiului","type":"hike","note":"Основной ориентир — средний вариант около 8.8 км / ~4 ч; маршрут заканчиваем обратно в цивилизации."},
+        {"id":"sep14-return","title":"Вернуться в Брашов засветло","type":"transport","required":true}
+      ]
+    },
+    {
+      "date": "2026-09-15",
+      "title": "Горный слот B · Bucegi",
+      "base": "Брашов",
+      "mode": "weather",
+      "items": [
+        {"id":"sep15-weather","title":"Проверить ветер / облачность / работу канатки","type":"weather","required":true},
+        {"id":"sep15-brasov-busteni","title":"Поезд Брашов → Bușteni","type":"transport","lat":45.4154,"lng":25.5367},
+        {"id":"sep15-cablecar","title":"Подъём канаткой в Bucegi","type":"cablecar","note":"Не привязываемся к горе, если канатка закрыта или верх в облаках."},
+        {"id":"sep15-bucegi-walk","title":"Высокогорная прогулка / Babele–Caraiman по условиям","type":"hike"},
+        {"id":"sep15-return","title":"Спуститься и вернуться в Брашов","type":"transport","required":true}
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "title": "Горный слот C · лёгкий / запасной",
+      "base": "Брашов",
+      "mode": "weather",
+      "items": [
+        {"id":"sep16-decide","title":"Выбрать день по погоде: лёгкий хайк или отдых","type":"weather","required":true},
+        {"id":"sep16-light-hike","title":"Лёгкий маршрут рядом с Брашовом","type":"hike","note":"Не превращаем резервный день в гонку: задача — виды и удовольствие, а не закрыть максимум точек."},
+        {"id":"sep16-brasov-rest","title":"Если погода плохая — оставить день Брашову / отдыху","type":"rest"}
+      ]
+    },
+    {
+      "date": "2026-09-17",
+      "title": "Резерв погоды · возврат в Бухарест",
+      "base": "Бухарест",
+      "mode": "flex",
+      "items": [
+        {"id":"sep17-last-slot","title":"Последний короткий горный слот только если погода и логистика позволяют","type":"hike"},
+        {"id":"sep17-pack","title":"Собрать вещи и закрыть базу в Брашове","type":"prep","required":true},
+        {"id":"sep17-brasov-bucharest","title":"Поезд Брашов → Бухарест","type":"transport","required":true},
+        {"id":"sep17-airport-ready","title":"Ночевать так, чтобы спокойно попасть в OTP утром","type":"stay","required":true}
+      ]
+    },
+    {
+      "date": "2026-09-18",
+      "title": "Домой",
+      "base": "Бухарест",
+      "mode": "fixed",
+      "items": [
+        {"id":"sep18-to-otp","time":"утро","title":"Добраться до OTP с запасом","type":"transport","required":true,"lat":44.5711,"lng":26.0850},
+        {"id":"sep18-flight","time":"13:00","title":"Вылет из Бухареста","type":"flight","required":true}
+      ]
+    }
+  ]
+}
