@@ -2,6 +2,7 @@ package com.tripatrip.tracker;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -10,7 +11,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.InputType;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -24,7 +24,7 @@ import java.util.List;
 public class MainActivity extends Activity {
     private static final int REQ_PERMISSIONS = 101;
     private static final String DEFAULT_ROOM = "755588edf78b6446a2b301f6a4846f4e";
-    private static final String MAP_URL = "https://trip-a-trip-aisarus-projects-37ae3e37.vercel.app/";
+    private static final String MAP_URL = "https://raw.githack.com/aisarus/trip-a-trip/main/live.html";
 
     private EditText nameInput;
     private EditText roomInput;
@@ -59,14 +59,13 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Foreground GPS service: работает при свёрнутом приложении и выключенном экране. Оставляй постоянное уведомление включённым.");
+        subtitle.setText("Фоновый GPS + live journal. После запуска можно выключить экран; постоянное уведомление оставляй включённым.");
         subtitle.setTextSize(15f);
         subtitle.setTextColor(0xff4b5563);
         subtitle.setPadding(0, 0, 0, dp(20));
         root.addView(subtitle);
 
-        TextView nameLabel = label("Имя участника");
-        root.addView(nameLabel);
+        root.addView(label("Имя участника"));
         nameInput = input("Например, Сеня");
         root.addView(nameInput);
 
@@ -81,6 +80,19 @@ public class MainActivity extends Activity {
         start.setOnClickListener(v -> startTracker());
         root.addView(start);
 
+        Button checkin = button("✓ МЫ ОК · CHECK-IN");
+        checkin.setOnClickListener(v -> sendTripEvent(LocationService.ACTION_CHECKIN));
+        root.addView(checkin);
+
+        Button sos = button("🚨 SOS EVENT");
+        sos.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Отправить SOS в trip-room?")
+                .setMessage("Это покажет яркий SOS-сигнал зрителям с последними координатами и зарядом. Это НЕ вызов 112.")
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Отправить SOS", (d, w) -> sendTripEvent(LocationService.ACTION_SOS))
+                .show());
+        root.addView(sos);
+
         Button stop = button("STOP TRACKING");
         stop.setOnClickListener(v -> {
             stopService(new Intent(this, LocationService.class));
@@ -90,7 +102,7 @@ public class MainActivity extends Activity {
         });
         root.addView(stop);
 
-        Button map = button("OPEN LIVE MAP");
+        Button map = button("OPEN LIVE MAP / JOURNAL");
         map.setOnClickListener(v -> {
             String room = roomInput.getText().toString().trim();
             if (room.isEmpty()) room = DEFAULT_ROOM;
@@ -101,8 +113,7 @@ public class MainActivity extends Activity {
 
         Button battery = button("OPEN BATTERY SETTINGS");
         battery.setOnClickListener(v -> {
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:" + getPackageName()));
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
             startActivity(i);
             Toast.makeText(this, "Battery → Unrestricted, если Samsung ограничивает приложение", Toast.LENGTH_LONG).show();
         });
@@ -115,7 +126,7 @@ public class MainActivity extends Activity {
         root.addView(statusText);
 
         TextView note = new TextView(this);
-        note.setText("После Start можно закрыть экран. Не нажимай Force stop. На Samsung лучше поставить Battery → Unrestricted. Координаты отправляются в ту же комнату, которую показывает веб-карта.");
+        note.setText("После Start можно закрыть экран. Не нажимай Force stop. На Samsung лучше Battery → Unrestricted. APK отправляет GPS и заряд в ту же комнату; Check-in/SOS появляются в live feed.");
         note.setTextSize(13f);
         note.setTextColor(0xff6b7280);
         note.setPadding(0, dp(18), 0, 0);
@@ -148,8 +159,7 @@ public class MainActivity extends Activity {
     private Button button(String text) {
         Button b = new Button(this);
         b.setText(text);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         p.topMargin = dp(12);
         b.setLayoutParams(p);
         return b;
@@ -171,14 +181,19 @@ public class MainActivity extends Activity {
         boolean running = p.getBoolean("running", false);
         long last = p.getLong("lastFix", 0L);
         String lastText = last == 0L ? "ещё нет GPS fix" : ((System.currentTimeMillis() - last) / 1000L) + " сек назад";
-        if (statusText != null) {
-            statusText.setText((running ? "● TRACKING ACTIVE" : "○ tracking stopped") + "\nПоследняя координата: " + lastText);
-        }
+        if (statusText != null) statusText.setText((running ? "● TRACKING ACTIVE" : "○ tracking stopped") + "\nПоследняя координата: " + lastText);
     }
 
     private boolean hasLocationPermission() {
         return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void saveIdentity() {
+        String name = nameInput.getText().toString().trim();
+        String room = roomInput.getText().toString().trim();
+        if (room.isEmpty()) room = DEFAULT_ROOM;
+        getSharedPreferences("tat", MODE_PRIVATE).edit().putString("name", name.isEmpty() ? "Traveler" : name).putString("room", room).apply();
     }
 
     private void startTracker() {
@@ -190,12 +205,7 @@ public class MainActivity extends Activity {
             return;
         }
         if (room.isEmpty()) room = DEFAULT_ROOM;
-
-        getSharedPreferences("tat", MODE_PRIVATE).edit()
-                .putString("name", name)
-                .putString("room", room)
-                .apply();
-
+        getSharedPreferences("tat", MODE_PRIVATE).edit().putString("name", name).putString("room", room).apply();
         if (!hasLocationPermission()) {
             startAfterPermission = true;
             List<String> perms = new ArrayList<>();
@@ -205,7 +215,6 @@ public class MainActivity extends Activity {
             requestPermissions(perms.toArray(new String[0]), REQ_PERMISSIONS);
             return;
         }
-
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_PERMISSIONS);
         }
@@ -220,6 +229,21 @@ public class MainActivity extends Activity {
         getSharedPreferences("tat", MODE_PRIVATE).edit().putBoolean("running", true).apply();
         refreshStatus();
         Toast.makeText(this, "Background GPS started", Toast.LENGTH_SHORT).show();
+    }
+
+    private void sendTripEvent(String action) {
+        SharedPreferences p = getSharedPreferences("tat", MODE_PRIVATE);
+        if (!p.getBoolean("running", false)) {
+            Toast.makeText(this, "Сначала запусти Background GPS", Toast.LENGTH_LONG).show();
+            return;
+        }
+        saveIdentity();
+        Intent i = new Intent(this, LocationService.class);
+        i.setAction(action);
+        i.putExtra("name", getSharedPreferences("tat", MODE_PRIVATE).getString("name", "Traveler"));
+        i.putExtra("room", getSharedPreferences("tat", MODE_PRIVATE).getString("room", DEFAULT_ROOM));
+        startForegroundService(i);
+        Toast.makeText(this, LocationService.ACTION_SOS.equals(action) ? "SOS отправляется в trip-room" : "Check-in отправляется", Toast.LENGTH_SHORT).show();
     }
 
     @Override
