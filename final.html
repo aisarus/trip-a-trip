@@ -54,7 +54,7 @@
           <button class="quick" id="trackBtn">◎<span>Мой GPS</span></button>
           <button class="quick danger" id="sosBtn">🚨<span>SOS</span></button>
         </div>
-        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+        <input id="photoInput" type="file" accept="image/*" hidden />
 
         <div class="section-head"><h2>Последний момент</h2><button class="text-btn" data-tab="feed">Вся лента</button></div>
         <div id="latestMoment" class="card latest"><div class="empty">Фотографии и check-in появятся здесь.</div></div>
@@ -122,8 +122,9 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
-  <script src="final.js"></script>
-  <script src="trip-plan.js"></script>
+  <script src="mqtt-resilient.js?v=20260911-1"></script>
+  <script src="final.js?v=20260911-1"></script>
+  <script src="trip-plan.js?v=20260911-1"></script>
   <script>
     (()=>{
       const nav=document.getElementById('bottomTabs');
