@@ -1,0 +1,20 @@
+name: Check live tracker
+on:
+  push:
+    paths:
+      - 'live.js'
+      - 'live.html'
+      - 'live.css'
+      - '.github/workflows/check-live.yml'
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: node --check live.js
+      - name: Check required files
+        run: test -s live.html && test -s live.css && test -s live.js
