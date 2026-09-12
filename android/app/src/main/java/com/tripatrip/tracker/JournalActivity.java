@@ -39,7 +39,11 @@ public class JournalActivity extends Activity {
         String room = getIntent().getStringExtra("room");
         String name = getIntent().getStringExtra("name");
         if (room == null || room.trim().isEmpty()) room = p.getString("room", DEFAULT_ROOM);
-        if (name == null || name.trim().isEmpty()) name = p.getString("name", "Traveler");
+        if (name == null || name.trim().isEmpty()) name = p.getString("name", "Viewer");
+        String canonical = AuthorizedTravelers.canonical(name);
+        final boolean canTravel = canonical != null;
+        if (canTravel) name = canonical;
+        final String displayName = name;
 
         webView = new WebView(this);
         setContentView(webView);
@@ -47,7 +51,7 @@ public class JournalActivity extends Activity {
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
-        s.setGeolocationEnabled(true);
+        s.setGeolocationEnabled(canTravel);
         s.setAllowFileAccess(true);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setLoadWithOverviewMode(true);
@@ -57,8 +61,8 @@ public class JournalActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-                boolean granted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                        || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                boolean granted = canTravel && (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
                 callback.invoke(origin, granted, false);
             }
 
@@ -90,8 +94,9 @@ public class JournalActivity extends Activity {
 
         String url = JOURNAL_URL
                 + "?room=" + Uri.encode(room)
-                + "&name=" + Uri.encode(name)
-                + "&role=travel&native=1";
+                + "&name=" + Uri.encode(displayName)
+                + "&role=" + (canTravel ? "travel" : "watch")
+                + "&native=1";
         webView.loadUrl(url);
     }
 
