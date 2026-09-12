@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d0d12">
+<title>Sibiu Now — прогулка до 15:00</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="./sibiu.css">
+</head>
+<body>
+<main class="shell">
+<header class="top">
+<div><div class="eyebrow">Sibiu · сейчас</div><h1>Красивый город<br>до 15:00.</h1><p>Старт от Nicolae Bălcescu. Сначала самое сильное, потом развилка: улицы и стены, если подсохнет, или Брукенталь, если дождь надоест.</p></div>
+<div class="clock"><strong id="now">11:40</strong><span id="left">до 15:00</span></div>
+</header>
+<div class="chips"><span class="chip live">● live GPS</span><span class="chip">≈ 3 км</span><span class="chip">2:40–3:10</span><span class="chip">17° · морось</span></div>
+<section class="mapwrap"><div id="map"></div><div class="mapactions"><button id="locate">◎ Я здесь</button><button id="fit">↗ Весь маршрут</button></div><div class="gpsinfo"><div><b id="nextName">Следующая: Piața Mare</b><br><span id="nextDist">включи геолокацию — посчитаю расстояние</span></div><span id="modeLabel">сухой маршрут</span></div></section>
+<div class="switcher"><button class="routebtn active" data-mode="dry">☀ Подсохло — гуляем</button><button class="routebtn" data-mode="rain">☂ Дождь — в музей</button></div>
+<div class="notice"><b>Не трать время на Turnul Sfatului:</b> по текущему листингу башня временно закрыта. Главный высокий вид сегодня бери с башни Евангелического собора.</div>
+<div class="headrow"><h2>Маршрут</h2><small id="routeSummary">улицы · стены · 2:45</small></div>
+<section id="stops" class="stops"></section>
+<div class="cta"><a id="gmaps" target="_blank" rel="noopener">Открыть весь маршрут ↗</a><button id="reset">Сбросить галочки</button></div>
+<footer>Собрано 12.09.2026 под прогулку примерно до 15:00. Карта — OpenStreetMap/Leaflet. Часы ключевых мест проверены перед сборкой.</footer>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="./sibiu.js"></script>
+</body>
+</html>
