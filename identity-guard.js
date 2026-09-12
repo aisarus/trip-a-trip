@@ -11,6 +11,7 @@ const CANON=new Map([
   ['yana','Яна']
 ]);
 const MEMBER_RE=/^trip-a-trip\/v1\/[^/]+\/member\/[^/]+$/;
+const BROKER='wss://broker.emqx.io:8084/mqtt';
 
 function normalizeName(name){
   try{return String(name??'').trim().normalize('NFKC').toLowerCase()}catch(e){return String(name??'').trim().toLowerCase()}
@@ -45,12 +46,12 @@ function currentEnteredName(){
   const room=qs.get('room');
   return room?(localStorage.getItem(`tat-name-${room}`)||''):'';
 }
-function showBlocked(){
-  const text='GPS доступен только для Сеня и Яна';
+function showToast(text){
   const toast=document.getElementById('toast');
-  if(toast){toast.textContent=text;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2400)}
+  if(toast){toast.textContent=text;toast.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>toast.classList.remove('show'),2400)}
   else console.warn('[Trip-a-Trip]',text);
 }
+function showBlocked(){showToast('GPS доступен только для Сеня и Яна')}
 function clearLocalTrail(room,id){
   try{if(room&&id)localStorage.removeItem(`tat-trail-${room}-${id}`)}catch(e){}
 }
@@ -90,10 +91,56 @@ function cleanQueuedMemberPublishes(){
     if(clean.length!==q.length)localStorage.setItem(key,JSON.stringify(clean));
   }catch(e){}
 }
+function switchThisClientToWatch(){
+  try{
+    const room=roomFromUrl(),qs=new URLSearchParams(location.search);
+    if(room)localStorage.setItem(`tat-role-${room}`,'watch');
+    qs.set('role','watch');
+    history.replaceState(null,'',location.pathname+'?'+qs.toString()+location.hash);
+  }catch(e){}
+}
+function stopGpsFromClient(){
+  const name=canonicalName(currentEnteredName());
+  const room=roomFromUrl();
+  if(!name){showBlocked();return}
+  if(!room){showToast('Не найден room-key');return}
+  const finish=()=>{
+    switchThisClientToWatch();
+    showToast(`GPS ${name} остановлен`);
+    setTimeout(()=>location.reload(),550);
+  };
+  if(!window.mqtt?.connect){finish();return}
+  let settled=false,client=null;
+  const done=()=>{if(settled)return;settled=true;try{client?.end?.(true)}catch(e){}finish()};
+  const timeout=setTimeout(done,2200);
+  try{
+    client=window.mqtt.connect(BROKER,{clientId:'tat_stop_'+Math.random().toString(16).slice(2),clean:true,reconnectPeriod:0,connectTimeout:1600,keepalive:10});
+    client.on('connect',()=>{
+      const topic=`trip-a-trip/v2/${room}/control/stop`;
+      const payload=JSON.stringify({action:'stop-gps',name,ts:Date.now()});
+      client.publish(topic,payload,{qos:1,retain:false},()=>{clearTimeout(timeout);done()});
+    });
+    client.on('error',()=>{clearTimeout(timeout);done()});
+  }catch(e){clearTimeout(timeout);done()}
+}
+function installStopButton(){
+  if(document.getElementById('stopGpsBtn'))return;
+  const quick=document.getElementById('quickRow');
+  if(!quick)return;
+  const btn=document.createElement('button');
+  btn.id='stopGpsBtn';
+  btn.className='quick danger';
+  btn.type='button';
+  btn.style.cssText='width:100%;margin-top:8px;';
+  btn.innerHTML='⏹<span>Остановить GPS</span>';
+  btn.addEventListener('click',stopGpsFromClient);
+  quick.insertAdjacentElement('afterend',btn);
+}
 
-window.TripATripIdentityGuard={canonicalName,isAllowedName};
+window.TripATripIdentityGuard={canonicalName,isAllowedName,stopGpsFromClient};
 hardenStoredIdentity();
 cleanQueuedMemberPublishes();
+installStopButton();
 
 document.addEventListener('click',e=>{
   const button=e.target?.closest?.('button');
