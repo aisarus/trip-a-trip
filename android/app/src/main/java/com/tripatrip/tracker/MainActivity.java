@@ -125,7 +125,7 @@ public class MainActivity extends Activity {
         root.addView(statusText);
 
         TextView note = new TextView(this);
-        note.setText("После Start экран можно выключить. Не делай Force stop. Journal открывается внутри приложения, а зрителям отправляй Share Viewer Link.");
+        note.setText("После Start экран можно выключить. GPS-публикация разрешена только именам Сеня и Яна. Journal открывается внутри приложения, а зрителям отправляй Share Viewer Link.");
         note.setTextSize(13f);
         note.setTextColor(0xff6b7280);
         note.setPadding(0, dp(18), 0, 0);
@@ -193,20 +193,30 @@ public class MainActivity extends Activity {
 
     private String[] identity() {
         String name = nameInput.getText().toString().trim();
+        String canonical = AuthorizedTravelers.canonical(name);
+        if (canonical != null) name = canonical;
         String room = roomInput.getText().toString().trim();
         if (room.isEmpty()) room = DEFAULT_ROOM;
-        if (name.isEmpty()) name = "Traveler";
+        if (name.isEmpty()) name = "Viewer";
         getSharedPreferences("tat", MODE_PRIVATE).edit().putString("name", name).putString("room", room).apply();
         return new String[]{name, room};
     }
 
     private void startTracker() {
-        String name = nameInput.getText().toString().trim();
-        if (name.isEmpty()) {
+        String rawName = nameInput.getText().toString().trim();
+        if (rawName.isEmpty()) {
             nameInput.requestFocus();
             Toast.makeText(this, "Введи имя", Toast.LENGTH_SHORT).show();
             return;
         }
+        String canonical = AuthorizedTravelers.canonical(rawName);
+        if (canonical == null) {
+            nameInput.requestFocus();
+            getSharedPreferences("tat", MODE_PRIVATE).edit().putBoolean("running", false).apply();
+            Toast.makeText(this, "GPS можно публиковать только как Сеня или Яна", Toast.LENGTH_LONG).show();
+            return;
+        }
+        nameInput.setText(canonical);
         String[] id = identity();
         if (!hasLocationPermission()) {
             startAfterPermission = true;
@@ -224,11 +234,17 @@ public class MainActivity extends Activity {
     }
 
     private void actuallyStart(String name, String room, boolean openJournal) {
+        String canonical = AuthorizedTravelers.canonical(name);
+        if (canonical == null) {
+            getSharedPreferences("tat", MODE_PRIVATE).edit().putBoolean("running", false).apply();
+            Toast.makeText(this, "GPS заблокирован: разрешены только Сеня и Яна", Toast.LENGTH_LONG).show();
+            return;
+        }
         Intent i = new Intent(this, LocationService.class);
-        i.putExtra("name", name);
+        i.putExtra("name", canonical);
         i.putExtra("room", room);
         startForegroundService(i);
-        getSharedPreferences("tat", MODE_PRIVATE).edit().putBoolean("running", true).apply();
+        getSharedPreferences("tat", MODE_PRIVATE).edit().putString("name", canonical).putBoolean("running", true).apply();
         refreshStatus();
         Toast.makeText(this, "Background GPS started", Toast.LENGTH_SHORT).show();
         if (openJournal) openJournal();
@@ -262,9 +278,14 @@ public class MainActivity extends Activity {
             return;
         }
         String[] id = identity();
+        String canonical = AuthorizedTravelers.canonical(id[0]);
+        if (canonical == null) {
+            Toast.makeText(this, "События с геопозицией разрешены только Сене и Яне", Toast.LENGTH_LONG).show();
+            return;
+        }
         Intent i = new Intent(this, LocationService.class);
         i.setAction(action);
-        i.putExtra("name", id[0]);
+        i.putExtra("name", canonical);
         i.putExtra("room", id[1]);
         startForegroundService(i);
         Toast.makeText(this, LocationService.ACTION_SOS.equals(action) ? "SOS отправляется в trip-room" : "Check-in отправляется", Toast.LENGTH_SHORT).show();
@@ -277,7 +298,9 @@ public class MainActivity extends Activity {
             startAfterPermission = false;
             if (hasLocationPermission()) {
                 SharedPreferences p = getSharedPreferences("tat", MODE_PRIVATE);
-                actuallyStart(p.getString("name", "Traveler"), p.getString("room", DEFAULT_ROOM), true);
+                String canonical = AuthorizedTravelers.canonical(p.getString("name", ""));
+                if (canonical != null) actuallyStart(canonical, p.getString("room", DEFAULT_ROOM), true);
+                else Toast.makeText(this, "GPS можно публиковать только как Сеня или Яна", Toast.LENGTH_LONG).show();
             } else {
                 Toast.makeText(this, "Без геолокации трекер не сможет работать", Toast.LENGTH_LONG).show();
             }
