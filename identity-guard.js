@@ -110,42 +110,43 @@ if(!window.mqtt?.connect)return;
 const originalConnect=window.mqtt.connect.bind(window.mqtt);
 window.mqtt.connect=function(...args){
   const client=originalConnect(...args);
-  const rawPublish=client.publish.bind(client);
-  const rawOn=client.on.bind(client);
-
-  client.publish=function(topic,message,opts,cb){
-    if(isMemberTopic(topic)){
-      const p=decodePayload(message);
-      if(!p||!isAllowedName(p.name)){
-        showBlocked();
-        if(typeof cb==='function')queueMicrotask(()=>cb(new Error('Trip-a-Trip GPS identity blocked')));
-        return client;
-      }
-      const canonical=canonicalName(p.name);
-      if(canonical&&p.name!==canonical){
-        p.name=canonical;
-        message=JSON.stringify(p);
-      }
-    }
-    return rawPublish(topic,message,opts,cb);
-  };
-
-  client.on=function(event,handler){
-    if(event!=='message'||typeof handler!=='function')return rawOn(event,handler);
-    return rawOn('message',(topic,message,...rest)=>{
-      if(isMemberTopic(topic)){
-        if(message==null||message.length===0)return;
-        const p=decodePayload(message);
-        if(!p||shouldPurgeMember(p)){
-          const parts=String(topic).split('/');
-          clearLocalTrail(parts[2],parts[4]);
-          try{rawPublish(topic,'',{qos:0,retain:true})}catch(e){}
-          return;
+  return new Proxy(client,{
+    get(target,prop,receiver){
+      if(prop==='publish')return function(topic,message,opts,cb){
+        if(isMemberTopic(topic)){
+          const p=decodePayload(message);
+          if(!p||!isAllowedName(p.name)){
+            showBlocked();
+            if(typeof cb==='function')queueMicrotask(()=>cb(new Error('Trip-a-Trip GPS identity blocked')));
+            return receiver;
+          }
+          const canonical=canonicalName(p.name);
+          if(canonical&&p.name!==canonical){
+            p.name=canonical;
+            message=JSON.stringify(p);
+          }
         }
-      }
-      handler(topic,message,...rest);
-    });
-  };
-  return client;
+        return target.publish(topic,message,opts,cb);
+      };
+      if(prop==='on')return function(event,handler){
+        if(event!=='message'||typeof handler!=='function')return target.on(event,handler);
+        return target.on('message',(topic,message,...rest)=>{
+          if(isMemberTopic(topic)){
+            if(message==null||message.length===0)return;
+            const p=decodePayload(message);
+            if(!p||shouldPurgeMember(p)){
+              const parts=String(topic).split('/');
+              clearLocalTrail(parts[2],parts[4]);
+              try{target.publish(topic,'',{qos:0,retain:true})}catch(e){}
+              return;
+            }
+          }
+          handler(topic,message,...rest);
+        });
+      };
+      const value=Reflect.get(target,prop,target);
+      return typeof value==='function'?value.bind(target):value;
+    }
+  });
 };
 })();
