@@ -17,6 +17,8 @@ import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.IBinder;
 
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -122,8 +124,50 @@ public class LocationService extends Service implements LocationListener {
             String shortId = deviceId.replace("-", "");
             if (shortId.length() > 18) shortId = shortId.substring(0, 18);
             mqtt = new MqttClient(BROKER, "tat_android_" + shortId, new MemoryPersistence());
+            mqtt.setCallback(new MqttCallbackExtended() {
+                @Override
+                public void connectComplete(boolean reconnect, String serverURI) {
+                    subscribeControl();
+                }
+
+                @Override
+                public void connectionLost(Throwable cause) { }
+
+                @Override
+                public void messageArrived(String topic, MqttMessage message) {
+                    handleControl(topic, message);
+                }
+
+                @Override
+                public void deliveryComplete(IMqttDeliveryToken token) { }
+            });
         }
         if (!mqtt.isConnected()) mqtt.connect(mqttOptions);
+        subscribeControl();
+    }
+
+    private void subscribeControl() {
+        try {
+            if (mqtt != null && mqtt.isConnected() && room != null && !room.isEmpty()) {
+                mqtt.subscribe("trip-a-trip/v2/" + room + "/control/stop", 1);
+            }
+        } catch (Exception ignored) { }
+    }
+
+    private void handleControl(String topic, MqttMessage message) {
+        if (room == null || displayName == null || topic == null || message == null) return;
+        String expected = "trip-a-trip/v2/" + room + "/control/stop";
+        if (!expected.equals(topic)) return;
+        try {
+            JSONObject payload = new JSONObject(new String(message.getPayload(), StandardCharsets.UTF_8));
+            if (!"stop-gps".equals(payload.optString("action"))) return;
+            String target = AuthorizedTravelers.canonical(payload.optString("name"));
+            String me = AuthorizedTravelers.canonical(displayName);
+            if (target == null || me == null || !target.equals(me)) return;
+            prefs.edit().putBoolean("running", false).apply();
+            updateNotification("GPS stopped from trip client");
+            stopSelf();
+        } catch (Exception ignored) { }
     }
 
     private void requestLocationUpdates() {
