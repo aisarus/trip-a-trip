@@ -65,15 +65,30 @@ public class LocationService extends Service implements LocationListener {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        String requestedName = null;
         if (intent != null) {
-            String n = intent.getStringExtra("name");
+            requestedName = intent.getStringExtra("name");
             String r = intent.getStringExtra("room");
-            if (n != null && !n.trim().isEmpty()) prefs.edit().putString("name", n.trim()).apply();
             if (r != null && !r.trim().isEmpty()) prefs.edit().putString("room", r.trim()).apply();
         }
-        displayName = prefs.getString("name", "Traveler");
+        if (requestedName == null || requestedName.trim().isEmpty()) requestedName = prefs.getString("name", "");
+        String canonical = AuthorizedTravelers.canonical(requestedName);
+        if (canonical == null) {
+            trail = new JSONArray();
+            prefs.edit()
+                    .putBoolean("running", false)
+                    .remove("trail")
+                    .remove("lastLat")
+                    .remove("lastLng")
+                    .remove("lastFix")
+                    .apply();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        displayName = canonical;
         room = prefs.getString("room", "755588edf78b6446a2b301f6a4846f4e");
-        prefs.edit().putBoolean("running", true).apply();
+        prefs.edit().putString("name", canonical).putBoolean("running", true).apply();
 
         startForeground(NOTIFICATION_ID, buildNotification("Starting GPS…"));
         prepareMqtt();
@@ -112,6 +127,11 @@ public class LocationService extends Service implements LocationListener {
     }
 
     private void requestLocationUpdates() {
+        if (!AuthorizedTravelers.isAllowed(displayName)) {
+            updateNotification("GPS blocked · identity not allowed");
+            stopSelf();
+            return;
+        }
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             updateNotification("Location permission missing");
@@ -132,6 +152,7 @@ public class LocationService extends Service implements LocationListener {
 
     @Override
     public void onLocationChanged(Location location) {
+        if (!AuthorizedTravelers.isAllowed(displayName)) return;
         long now = System.currentTimeMillis();
         prefs.edit()
                 .putLong("lastFix", now)
@@ -183,6 +204,7 @@ public class LocationService extends Service implements LocationListener {
     }
 
     private void publishEvent(String type, String text) {
+        if (!AuthorizedTravelers.isAllowed(displayName)) return;
         final String eventId = UUID.randomUUID().toString();
         final long now = System.currentTimeMillis();
         try {
@@ -210,6 +232,7 @@ public class LocationService extends Service implements LocationListener {
     }
 
     private void publish(String topic, String json, boolean retain, String notificationText) {
+        if (topic.contains("/member/") && !AuthorizedTravelers.isAllowed(displayName)) return;
         try {
             ensureConnected();
             MqttMessage msg = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
