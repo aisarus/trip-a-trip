@@ -89,8 +89,9 @@
     .iconbtn.active{background:#eafff4;color:#07130c;border-color:#eafff4}
     .liveStatus{pointer-events:auto;display:flex;align-items:center;gap:7px;background:rgba(7,11,18,.88);border:1px solid var(--line);border-radius:999px;padding:9px 11px;font-size:11px;color:#aab7c8;backdrop-filter:blur(18px);box-shadow:var(--shadow)}
     .liveStatus i{width:8px;height:8px;border-radius:50%;background:#66758a}.liveStatus.online i{background:var(--green);box-shadow:0 0 0 5px rgba(87,227,137,.1)}.liveStatus.tracking{color:#eafff4;border-color:rgba(87,227,137,.45)}
-    .liveMarker{min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:#06131a;border:2px solid #fff;box-shadow:0 5px 22px rgba(0,0,0,.5),0 0 0 7px rgba(82,229,255,.16);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:900;white-space:nowrap;position:relative}
-    .liveMarker:before{content:'';position:absolute;inset:-8px;border:2px solid rgba(82,229,255,.48);border-radius:999px;animation:pulse 1.8s ease-out infinite}@keyframes pulse{0%{transform:scale(.72);opacity:.9}100%{transform:scale(1.55);opacity:0}}
+    .liveMarker{min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:#06131a;border:2px solid #fff;box-shadow:0 5px 22px rgba(0,0,0,.5),0 0 0 7px rgba(82,229,255,.16);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:900;white-space:nowrap}
+    .selfMarker{width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;border-radius:50%;display:grid;place-items:center;background:#57e389;color:#06110b;border:3px solid #fff;box-shadow:0 0 0 7px rgba(87,227,137,.2),0 8px 24px rgba(0,0,0,.42);font-size:12px;font-weight:950;line-height:1}
+    .selfMarker:after{content:'';position:absolute;width:54px;height:54px;border-radius:50%;border:2px solid rgba(87,227,137,.48);animation:pulse 1.8s ease-out infinite;pointer-events:none}@keyframes pulse{0%{transform:scale(.72);opacity:.9}100%{transform:scale(1.35);opacity:0}}
     .dot.under{background:var(--orange)}
     .privacyNote{font-size:10px;color:#728399;padding:0 2px 10px;line-height:1.4}
     .panelToggle{display:none;border:0;background:transparent;color:#8fa0b6;cursor:pointer}
@@ -209,7 +210,7 @@
     const rid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
     const deviceId=localStorage.getItem('tat-device-'+room)||rid();localStorage.setItem('tat-device-'+room,deviceId);
     const myName=localStorage.getItem('tat-yk-name-'+room)||'Я';
-    let tracking=false,watchId=null,wakeLock=null,lastPublished=null,lastPublishAt=0;
+    let tracking=false,watchId=null,wakeLock=null,lastPublished=null,lastPublishAt=0,myMarker=null;
     let myTrail=[];try{myTrail=JSON.parse(localStorage.getItem('tat-trail-'+room+'-'+deviceId)||'[]')}catch(e){}if(!Array.isArray(myTrail))myTrail=[];
     const liveMembers=new Map();
 
@@ -299,7 +300,7 @@
       return {type:'FeatureCollection',features:routes.map((r,i)=>({type:'Feature',properties:{id:r.id,name:r.name,idx:i},geometry:{type:'LineString',coordinates:r.coords}}))};
     }
     function tunnelFeatures(){
-      return {type:'FeatureCollection',features:tunnels.map((t,i)=>({type:'Feature',properties:{idx:i,name:t.name||'Тоннель',kind:t.kind,surfaceClass:t.surfaceClass||'tunnel'},geometry:{type:'Point',coordinates:[t.lng,t.lat]}}))};
+      return {type:'FeatureCollection',features:tunnels.map((t,i)=>({type:'Feature',properties:{idx:i,name:t.name||'Тоннель',kind:t.kind,surfaceClass:t.surfaceClass||'tunnel',priority:t.priority||'major'},geometry:{type:'Point',coordinates:[t.lng,t.lat]}}))};
     }
     function liveTrailFeatures(){
       return {type:'FeatureCollection',features:[...liveMembers.values()].map(m=>({type:'Feature',properties:{id:m.payload.id,name:m.payload.name||'LIVE'},geometry:{type:'LineString',coordinates:(m.payload.trail||[]).map(p=>[p.lng,p.lat])}})).filter(f=>f.geometry.coordinates.length>1)};
@@ -317,8 +318,10 @@
       map.addLayer({id:'routes',type:'line',source:'routes',paint:{'line-color':'#57e389','line-width':['interpolate',['linear'],['zoom'],6,2.2,13,5.2],'line-opacity':.95}});
       map.addSource('tunnels',{type:'geojson',data:tunnelFeatures()});
       const tunnelColor=['case',['==',['get','kind'],'rail'],'#c08cff',['==',['get','surfaceClass'],'underpass'],'#ff9a3d','#52e5ff'];
-      map.addLayer({id:'tunnel-halo',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,5,12,10],'circle-color':tunnelColor,'circle-opacity':.15}});
-      map.addLayer({id:'tunnels',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,2.8,12,5.8],'circle-color':tunnelColor,'circle-stroke-color':'#071018','circle-stroke-width':1.5,'circle-opacity':.98}});
+      map.addLayer({id:'tunnel-halo',type:'circle',source:'tunnels',filter:['==',['get','priority'],'major'],paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,6,12,11],'circle-color':tunnelColor,'circle-opacity':.18}});
+      map.addLayer({id:'tunnels',type:'circle',source:'tunnels',filter:['==',['get','priority'],'major'],paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,3.6,12,6.5],'circle-color':tunnelColor,'circle-stroke-color':'#071018','circle-stroke-width':1.7,'circle-opacity':.98}});
+      map.addLayer({id:'tunnels-auto-road',type:'circle',source:'tunnels',minzoom:9.2,filter:['all',['==',['get','priority'],'auto'],['==',['get','kind'],'road']],paint:{'circle-radius':['interpolate',['linear'],['zoom'],9.2,2.5,13,5.2],'circle-color':'#52e5ff','circle-stroke-color':'#071018','circle-stroke-width':1.2,'circle-opacity':.9}});
+      map.addLayer({id:'tunnels-auto-rail',type:'circle',source:'tunnels',minzoom:10.1,filter:['all',['==',['get','priority'],'auto'],['==',['get','kind'],'rail']],paint:{'circle-radius':['interpolate',['linear'],['zoom'],10.1,2.3,13,4.8],'circle-color':'#c08cff','circle-stroke-color':'#071018','circle-stroke-width':1.1,'circle-opacity':.86}});
       map.addSource('underground-corridors',{type:'geojson',data:corridorFeatures()});
       map.addLayer({id:'underground-corridor-glow',type:'line',source:'underground-corridors',paint:{'line-color':['case',['==',['get','status'],'construction'],'#ff9a3d','#c08cff'],'line-width':12,'line-opacity':.13,'line-blur':5}});
       map.addLayer({id:'underground-corridors',type:'line',source:'underground-corridors',paint:{'line-color':['case',['==',['get','status'],'construction'],'#ff9a3d','#c08cff'],'line-width':['interpolate',['linear'],['zoom'],8,3,14,6],'line-opacity':.92,'line-dasharray':['case',['==',['get','status'],'construction'],['literal',[2,2]],['literal',[1,0]]]}});
@@ -330,9 +333,11 @@
       map.addLayer({id:'live-point-halo',type:'circle',source:'live-points',paint:{'circle-radius':14,'circle-color':'#52e5ff','circle-opacity':.18}});
       map.addLayer({id:'live-points',type:'circle',source:'live-points',paint:{'circle-radius':7,'circle-color':'#52e5ff','circle-stroke-color':'#ffffff','circle-stroke-width':2}});
       map.addLayer({id:'live-labels',type:'symbol',source:'live-points',layout:{'text-field':['get','name'],'text-size':11,'text-offset':[0,1.7],'text-anchor':'top','text-allow-overlap':true},paint:{'text-color':'#ffffff','text-halo-color':'#071018','text-halo-width':2}});
-      map.on('mouseenter','tunnels',()=>map.getCanvas().style.cursor='pointer');
-      map.on('mouseleave','tunnels',()=>map.getCanvas().style.cursor='');
-      map.on('click','tunnels',e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const t=tunnels[Number(i)];selectTunnel(t)}});
+      ['tunnels','tunnels-auto-road','tunnels-auto-rail'].forEach(layerId=>{
+        map.on('mouseenter',layerId,()=>map.getCanvas().style.cursor='pointer');
+        map.on('mouseleave',layerId,()=>map.getCanvas().style.cursor='');
+        map.on('click',layerId,e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const t=tunnels[Number(i)];selectTunnel(t)}});
+      });
       map.on('mouseenter','routes',()=>map.getCanvas().style.cursor='pointer');
       map.on('mouseleave','routes',()=>map.getCanvas().style.cursor='');
       map.on('click','routes',e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const r=routes[Number(i)];selectRoute(r)}});
@@ -391,7 +396,7 @@
     ];
 
     async function loadTunnels(){
-      const q='[out:json][timeout:22];area["ISO3166-1"="IL"][admin_level=2]->.a;(way(area.a)["tunnel"]["highway"];way(area.a)["tunnel"]["railway"];way["covered"="yes"]["highway"](31.93,34.70,32.24,34.92);way["highway"]["layer"~"^-[1-9]"](31.93,34.70,32.24,34.92););out center tags;';
+      const q='[out:json][timeout:22];area["ISO3166-1"="IL"][admin_level=2]->.a;(way(area.a)["tunnel"~"^(yes|covered)$"]["highway"];way(area.a)["tunnel"~"^(yes|covered)$"]["railway"];);out center tags;';
       const endpoints=['https://overpass.kumi.systems/api/interpreter','https://overpass-api.de/api/interpreter','https://overpass.nchc.org.tw/api/interpreter'];
       let data=null, lastErr=null;
       for(const url of endpoints){
@@ -410,17 +415,24 @@
         tunnels=data.elements.map(x=>{
           const c=x.center; const tags=x.tags||{}; if(!c||!Number.isFinite(c.lat)||!Number.isFinite(c.lon))return null;
           const kind=tags.railway?'rail':'road';
-          const surfaceClass=(tags.tunnel&&tags.tunnel!=='no')?'tunnel':'underpass';
+          const surfaceClass='tunnel';
           return {
-            key:String(x.type)+'-'+x.id,lat:c.lat,lng:c.lon,kind,kindLabel:kind==='rail'?'железнодорожный':surfaceClass==='underpass'?'городской underpass / covered':'автодорожный',
+            key:String(x.type)+'-'+x.id,lat:c.lat,lng:c.lon,kind,kindLabel:kind==='rail'?'железнодорожный':'автодорожный',
             name:tags.name||tags['name:en']||tags['name:he']||'',ref:tags.ref||'',road:tags.highway||tags.railway||'',
-            tunnel:tags.tunnel||'',covered:tags.covered||'',layer:tags.layer||'',surfaceClass,lit:tags.lit||'',maxspeed:tags.maxspeed||'',operator:tags.operator||''
+            tunnel:tags.tunnel||'',surfaceClass,priority:'auto',lit:tags.lit||'',maxspeed:tags.maxspeed||'',operator:tags.operator||''
           };
-        }).filter(Boolean).filter(t=>t.tunnel!=='no');
-        const merged=new Map(tunnels.map(t=>[t.key,t]));
-        knownCentralUnderground.forEach(t=>merged.set(t.key,t));
+        }).filter(Boolean);
+        const merged=new Map();
+        const collapsed=[];
+        for(const t of tunnels){
+          const sig=t.kind+'|'+(t.name||t.ref||t.road||'').toLowerCase();
+          const duplicate=collapsed.some(x=>x.sig===sig&&dist(x,t)<180);
+          if(!duplicate){collapsed.push({...t,sig});merged.set(t.key,t)}
+        }
+        fallbackTunnels.forEach(t=>merged.set(t.key,{...t,priority:'major'}));
+        knownCentralUnderground.forEach(t=>merged.set(t.key,{...t,priority:'major'}));
         tunnels=[...merged.values()];
-        tunnels.sort((a,b)=>(a.kind===b.kind?0:(a.kind==='road'?-1:1))||(a.surfaceClass===b.surfaceClass?0:(a.surfaceClass==='tunnel'?-1:1))||(a.name||'zzz').localeCompare(b.name||'zzz'));
+        tunnels.sort((a,b)=>(a.priority===b.priority?0:(a.priority==='major'?-1:1))||(a.kind===b.kind?0:(a.kind==='road'?-1:1))||(a.name||'zzz').localeCompare(b.name||'zzz'));
       }
       els.tunnelCountTop.textContent=tunnels.length;
       if(map.getSource('tunnels')) map.getSource('tunnels').setData(tunnelFeatures());
@@ -442,8 +454,16 @@
     client.on('message',(topic,b)=>{try{upsertLive(JSON.parse(b.toString()))}catch(e){}});
     async function acquireWakeLock(){try{if('wakeLock'in navigator)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
     async function releaseWakeLock(){try{await wakeLock?.release()}catch(e){}wakeLock=null}
+    function updateMyMarker(p){
+      if(!map.loaded()||!p)return;
+      if(!myMarker){
+        const el=document.createElement('div');el.className='selfMarker';el.textContent='Я';
+        myMarker=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).setPopup(new maplibregl.Popup({offset:28}).setHTML('<b>Моя геопозиция</b>')).addTo(map);
+      }else myMarker.setLngLat([p.lng,p.lat]);
+    }
     function publishMyPos(g){
       const p={lat:g.coords.latitude,lng:g.coords.longitude,accuracy:g.coords.accuracy,altitude:g.coords.altitude,speed:g.coords.speed,heading:g.coords.heading,ts:g.timestamp||Date.now()},now=Date.now();
+      updateMyMarker(p);
       if(lastPublished&&dist(lastPublished,p)<5&&now-lastPublishAt<8000)return;
       lastPublished=p;lastPublishAt=now;const prev=myTrail.at(-1);
       if(!prev||dist(prev,p)>=5||now-(prev.ts||0)>12000)myTrail.push({lat:p.lat,lng:p.lng,altitude:p.altitude,ts:now});
@@ -451,7 +471,7 @@
       const payload={v:2,id:deviceId,name:myName,ts:now,pos:p,trail:myTrail.slice(-350)};
       if(client.connected)client.publish(LIVE_BASE+'/member/'+deviceId,JSON.stringify(payload),{qos:0,retain:true});
       upsertLive(payload);
-      if(!publishMyPos.centered){publishMyPos.centered=true;map.flyTo({center:[p.lng,p.lat],zoom:15.5,pitch:46,bearing:18,duration:1200})}
+      if(!publishMyPos.centered){publishMyPos.centered=true;map.flyTo({center:[p.lng,p.lat],zoom:15.2,pitch:38,bearing:0,duration:900})}
     }
     function startTracking(){
       if(!navigator.geolocation){toast('В этом браузере нет GPS');return}
@@ -468,7 +488,7 @@
     setInterval(()=>{if(client.connected&&!tracking)setLiveStatus('LIVE · '+room.slice(0,6),true);updateLiveSources()},12000);
 
     map.on('load',()=>{
-      tunnels=[...fallbackTunnels,...knownCentralUnderground];
+      tunnels=[...fallbackTunnels.map(t=>({...t,priority:'major'})),...knownCentralUnderground.map(t=>({...t,priority:'major'}))];
       els.tunnelCountTop.textContent=tunnels.length;
       addLayers(); render(); updateLiveSources();
       setTimeout(()=>{if(els.loading)els.loading.style.display='none'},1800);
