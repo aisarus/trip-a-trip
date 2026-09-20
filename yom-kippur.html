@@ -93,42 +93,52 @@
     .liveMarker:before{content:'';position:absolute;inset:-8px;border:2px solid rgba(82,229,255,.48);border-radius:999px;animation:pulse 1.8s ease-out infinite}@keyframes pulse{0%{transform:scale(.72);opacity:.9}100%{transform:scale(1.55);opacity:0}}
     .dot.under{background:var(--orange)}
     .privacyNote{font-size:10px;color:#728399;padding:0 2px 10px;line-height:1.4}
+    .panelToggle{display:none;border:0;background:transparent;color:#8fa0b6;cursor:pointer}
+    .corridorBadge{position:fixed;z-index:6;right:16px;top:128px;background:rgba(7,11,18,.84);border:1px solid var(--line);border-radius:14px;padding:8px 10px;font-size:10px;color:#d5dfeb;backdrop-filter:blur(12px);box-shadow:var(--shadow)}
+    .corridorBadge b{color:#c08cff}
 
     @media(max-width:780px){
       .shade{background:linear-gradient(180deg,rgba(2,6,12,.18) 0,rgba(2,6,12,0) 28%,rgba(2,6,12,.08) 100%)}
-      .top{left:8px;right:8px;top:max(8px,env(safe-area-inset-top));gap:6px;align-items:center}
+      .top{left:8px;right:8px;top:max(8px,env(safe-area-inset-top));gap:5px;align-items:center}
       .spacer{display:none}
       .pill.hideMobile{display:none}
-      .brand{padding:6px;border-radius:16px;flex:0 0 auto}
-      .brand .logo{width:34px;height:34px;font-size:16px}
+      .brand{padding:5px;border-radius:13px;flex:0 0 auto}
+      .brand .logo{width:32px;height:32px;font-size:15px}
       .brand>div:last-child{display:none}
-      .liveStatus{width:38px;height:38px;padding:0;justify-content:center;border-radius:14px;flex:0 0 auto}
-      .liveStatus span{display:none}.liveStatus i{width:9px;height:9px}
-      .iconbtn{width:42px;height:42px;padding:0;border-radius:14px;font-size:0;display:grid;place-items:center;flex:0 0 auto}
-      .iconbtn:after{font-size:20px;line-height:1}
+      .liveStatus{width:34px;height:34px;padding:0;justify-content:center;border-radius:12px;flex:0 0 auto}
+      .liveStatus span{display:none}.liveStatus i{width:8px;height:8px}
+      .iconbtn{width:38px;height:38px;padding:0;border-radius:12px;font-size:0;display:grid;place-items:center;flex:0 0 auto}
+      .iconbtn:after{font-size:18px;line-height:1}
       #shareLive:after{content:'↗'}
       #liveBtn:after{content:'◎'}
-      #liveBtn.active:after{content:'■';font-size:16px}
+      #liveBtn.active:after{content:'■';font-size:14px}
       #resetView{margin-left:auto}
       #resetView:after{content:'⌖'}
-      .panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:34vh;min-height:265px;max-height:360px;border-radius:20px;background:rgba(7,11,18,.93)}
-      .panel:before{content:'';width:42px;height:4px;border-radius:99px;background:rgba(255,255,255,.23);margin:7px auto 0;flex:0 0 auto}
-      .hero{padding:7px 14px 9px}
-      .eyebrow{font-size:9px;letter-spacing:.08em}
-      h1{font-size:18px;margin:5px 0 0;line-height:1.05}
+      .panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:116px;min-height:0;max-height:none;border-radius:18px;background:rgba(7,11,18,.94);transition:height .22s ease}
+      .panel.expanded{height:46vh;max-height:500px}
+      .panelToggle{display:block;position:absolute;z-index:4;left:50%;top:0;transform:translateX(-50%);width:92px;height:18px;font-size:0}
+      .panelToggle:before{content:'';display:block;width:38px;height:4px;border-radius:99px;background:rgba(255,255,255,.28);margin:7px auto}
+      .hero{padding:12px 13px 5px}
+      .eyebrow{font-size:8px;letter-spacing:.05em}
+      h1{font-size:15px;margin:4px 0 0;line-height:1.05}
       .sub,.warning{display:none}
-      .tabs{padding:7px 10px;gap:7px}.tab{padding:8px;border-radius:11px;font-size:12px}
-      .scroll{padding:8px 10px 12px}
+      .panel:not(.expanded) h1{display:none}
+      .tabs{padding:6px 9px 8px;gap:6px;border-bottom:0}.tab{padding:8px 6px;border-radius:10px;font-size:11px}
+      .panel.expanded .tabs{border-bottom:1px solid var(--line)}
+      .scroll{padding:7px 9px 12px}
+      .panel:not(.expanded) .scroll{display:none}
       .sectionTitle{font-size:9px;margin-bottom:7px;letter-spacing:.06em}
       .privacyNote{font-size:9px;padding-bottom:7px}
       .card{padding:10px;border-radius:13px;margin-bottom:7px}.card h3{font-size:12px}.meta{font-size:10px}.tags{margin-top:6px}.tag{font-size:9px;padding:4px 6px}
       .routeStat{margin-top:7px;gap:5px}.routeStat span{padding:6px;font-size:9px}.routeStat b{font-size:10px}
       .legend{display:none}
       .maplibregl-ctrl-top-right{top:52px;right:6px}.maplibregl-ctrl-group{transform:scale(.88);transform-origin:top right}
-      .maplibregl-ctrl-bottom-right{bottom:calc(34vh + 16px)}
-      .peek{left:8px;right:8px;top:60px;width:auto;max-height:44vh}.gmap{height:175px}
-      .loading{top:68px;transform:translateX(-50%);padding:8px 10px;border-radius:12px;font-size:10px}
-      .toast{bottom:calc(34vh + 18px);font-size:10px}
+      .maplibregl-ctrl-bottom-right{bottom:130px}
+      .panel.expanded~.legend + .peek{}
+      .peek{left:8px;right:8px;top:56px;width:auto;max-height:44vh}.gmap{height:175px}
+      .loading{top:58px;transform:translateX(-50%);padding:7px 9px;border-radius:11px;font-size:9px}
+      .toast{bottom:132px;font-size:10px}
+      .corridorBadge{display:none}
     }
   </style>
 </head>
@@ -145,7 +155,8 @@
     <button class="iconbtn" id="resetView" title="Весь Израиль">⌖ Израиль</button>
   </div>
 
-  <aside class="panel">
+  <aside class="panel" id="panel">
+    <button class="panelToggle" id="panelToggle" aria-label="Развернуть или свернуть панель"></button>
     <div class="hero">
       <div class="eyebrow"><span class="liveDot"></span> Йом-Кипур 5787 · 20–21.09.2026</div>
       <h1>Тоннели + маршруты для роликов</h1>
@@ -159,6 +170,7 @@
     <div class="scroll" id="list"></div>
   </aside>
 
+  <div class="corridorBadge"><b>▰</b> подземные коридоры метро/трамвая</div>
   <div class="legend">
     <span><i style="background:#52e5ff"></i>автодорожный тоннель</span>
     <span><i style="background:#c08cff"></i>ж/д тоннель</span>
@@ -186,7 +198,8 @@
       peekMeta:document.getElementById('peekMeta'), openGoogle:document.getElementById('openGoogle'), focusMain:document.getElementById('focusMain'),
       tunnelCountTop:document.getElementById('tunnelCountTop'),
       liveBtn:document.getElementById('liveBtn'), shareLive:document.getElementById('shareLive'),
-      liveStatus:document.getElementById('liveStatus'), liveStatusText:document.getElementById('liveStatusText')
+      liveStatus:document.getElementById('liveStatus'), liveStatusText:document.getElementById('liveStatusText'),
+      panel:document.getElementById('panel'), panelToggle:document.getElementById('panelToggle')
     };
     let activeTab='routes', tunnels=[], selected=null;
     const qs=new URLSearchParams(location.search);
@@ -233,6 +246,16 @@
       }
     ];
 
+    const undergroundCorridors=[
+      {
+        id:'red-line',name:'Красная линия · действующий подземный участок',status:'open',
+        coords:[[34.885,32.100],[34.872,32.100],[34.851,32.096],[34.835,32.091],[34.820,32.087],[34.808,32.084],[34.797,32.083],[34.789,32.077],[34.786,32.070],[34.781,32.065],[34.771,32.061],[34.760,32.054]]
+      },
+      {
+        id:'green-line',name:'Зелёная линия · тоннели строятся',status:'construction',
+        coords:[[34.781,32.095],[34.781,32.087],[34.781,32.080],[34.782,32.073],[34.783,32.065],[34.779,32.056]]
+      }
+    ];
     const map = new maplibregl.Map({
       container:'map',
       style:{
@@ -281,6 +304,12 @@
     function liveTrailFeatures(){
       return {type:'FeatureCollection',features:[...liveMembers.values()].map(m=>({type:'Feature',properties:{id:m.payload.id,name:m.payload.name||'LIVE'},geometry:{type:'LineString',coordinates:(m.payload.trail||[]).map(p=>[p.lng,p.lat])}})).filter(f=>f.geometry.coordinates.length>1)};
     }
+    function livePointFeatures(){
+      return {type:'FeatureCollection',features:[...liveMembers.values()].filter(m=>m.payload?.pos).map(m=>({type:'Feature',properties:{id:m.payload.id,name:m.payload.name||'LIVE',age:age(m.payload.ts)},geometry:{type:'Point',coordinates:[m.payload.pos.lng,m.payload.pos.lat]}}))};
+    }
+    function corridorFeatures(){
+      return {type:'FeatureCollection',features:undergroundCorridors.map(c=>({type:'Feature',properties:{id:c.id,name:c.name,status:c.status},geometry:{type:'LineString',coordinates:c.coords}}))};
+    }
 
     function addLayers(){
       map.addSource('routes',{type:'geojson',data:routeFeatures()});
@@ -290,9 +319,17 @@
       const tunnelColor=['case',['==',['get','kind'],'rail'],'#c08cff',['==',['get','surfaceClass'],'underpass'],'#ff9a3d','#52e5ff'];
       map.addLayer({id:'tunnel-halo',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,5,12,10],'circle-color':tunnelColor,'circle-opacity':.15}});
       map.addLayer({id:'tunnels',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,2.8,12,5.8],'circle-color':tunnelColor,'circle-stroke-color':'#071018','circle-stroke-width':1.5,'circle-opacity':.98}});
+      map.addSource('underground-corridors',{type:'geojson',data:corridorFeatures()});
+      map.addLayer({id:'underground-corridor-glow',type:'line',source:'underground-corridors',paint:{'line-color':['case',['==',['get','status'],'construction'],'#ff9a3d','#c08cff'],'line-width':12,'line-opacity':.13,'line-blur':5}});
+      map.addLayer({id:'underground-corridors',type:'line',source:'underground-corridors',paint:{'line-color':['case',['==',['get','status'],'construction'],'#ff9a3d','#c08cff'],'line-width':['interpolate',['linear'],['zoom'],8,3,14,6],'line-opacity':.92,'line-dasharray':['case',['==',['get','status'],'construction'],['literal',[2,2]],['literal',[1,0]]]}});
+
       map.addSource('live-trails',{type:'geojson',data:liveTrailFeatures()});
       map.addLayer({id:'live-trail-glow',type:'line',source:'live-trails',paint:{'line-color':'#52e5ff','line-width':10,'line-opacity':.13,'line-blur':4}});
       map.addLayer({id:'live-trails',type:'line',source:'live-trails',paint:{'line-color':'#52e5ff','line-width':4,'line-opacity':.9}});
+      map.addSource('live-points',{type:'geojson',data:livePointFeatures()});
+      map.addLayer({id:'live-point-halo',type:'circle',source:'live-points',paint:{'circle-radius':14,'circle-color':'#52e5ff','circle-opacity':.18}});
+      map.addLayer({id:'live-points',type:'circle',source:'live-points',paint:{'circle-radius':7,'circle-color':'#52e5ff','circle-stroke-color':'#ffffff','circle-stroke-width':2}});
+      map.addLayer({id:'live-labels',type:'symbol',source:'live-points',layout:{'text-field':['get','name'],'text-size':11,'text-offset':[0,1.7],'text-anchor':'top','text-allow-overlap':true},paint:{'text-color':'#ffffff','text-halo-color':'#071018','text-halo-width':2}});
       map.on('mouseenter','tunnels',()=>map.getCanvas().style.cursor='pointer');
       map.on('mouseleave','tunnels',()=>map.getCanvas().style.cursor='');
       map.on('click','tunnels',e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const t=tunnels[Number(i)];selectTunnel(t)}});
@@ -322,7 +359,7 @@
         els.list.querySelectorAll('.card').forEach(el=>el.onclick=()=>selectRoute(routes.find(r=>r.id===el.dataset.id)));
       }else{
         const roads=tunnels.filter(t=>t.kind==='road'&&t.surfaceClass==='tunnel').length, rails=tunnels.filter(t=>t.kind==='rail').length, under=tunnels.filter(t=>t.surfaceClass==='underpass').length;
-        els.list.innerHTML='<div class="sectionTitle"><span>тоннели '+roads+' · ж/д '+rails+' · underpass '+under+'</span><span class="count">'+tunnels.length+'</span></div>'+
+        els.list.innerHTML='<div class="sectionTitle"><span>авто '+roads+' · ж/д '+rails+' · underpass '+under+' · коридоры '+undergroundCorridors.length+'</span><span class="count">'+tunnels.length+'</span></div>'+
           '<div class="privacyNote">Оранжевые точки — covered / layer&lt;0: это подземные или пониженные городские участки, не всегда полноценные тоннели.</div>'+
           (tunnels.length?tunnels.slice(0,600).map(t=>'<article class="card" data-key="'+esc(t.key)+'"><div class="cardTop"><span class="dot '+(t.kind==='rail'?'rail':t.surfaceClass==='underpass'?'under':'')+'"></span><div><h3>'+esc(t.name||((t.surfaceClass==='underpass'?'Подземный участок ':'Тоннель ')+(t.ref||t.road||'')))+'</h3><div class="meta">'+esc(t.kindLabel)+' · '+esc(t.ref||t.road||t.operator||'без номера')+'</div><div class="tags">'+(t.lit?'<span class="tag">💡 '+esc(t.lit)+'</span>':'')+(t.maxspeed?'<span class="tag">'+esc(t.maxspeed)+' км/ч</span>':'')+(t.surfaceClass?'<span class="tag">'+esc(t.surfaceClass)+'</span>':'')+'</div></div></div></article>').join(''):'<div class="empty">Подземные участки ещё загружаются или Overpass недоступен. Маршруты при этом работают.</div>');
         els.list.querySelectorAll('.card').forEach(el=>el.onclick=()=>selectTunnel(tunnels.find(t=>t.key===el.dataset.key)));
@@ -344,7 +381,13 @@
       {key:'known-laguardia',name:'La Guardia–HaMasger underpass',lat:32.05986,lng:34.78448,kind:'road',kindLabel:'городской underpass',surfaceClass:'underpass',ref:'Тель-Авив',tunnel:'known'},
       {key:'known-carlebach',name:'Carlebach / Yitzhak Sadeh underground junction',lat:32.0656,lng:34.7832,kind:'road',kindLabel:'городской тоннель',surfaceClass:'tunnel',ref:'Тель-Авив',tunnel:'known'},
       {key:'known-eliav',name:'מנהרת אריה לובה אליאב / Sarona underground road',lat:32.0718,lng:34.7867,kind:'road',kindLabel:'подземная городская дорога',surfaceClass:'tunnel',ref:'Sarona',tunnel:'known'},
-      {key:'known-volovelsky',name:'לולאת וולובלסקי / Volovelsky Loop',lat:32.0808,lng:34.7970,kind:'road',kindLabel:'городской тоннель',surfaceClass:'tunnel',ref:'Begin / Al Parashat Drakhim',tunnel:'known'}
+      {key:'known-volovelsky',name:'לולאת וולובלסקי / Volovelsky Loop',lat:32.0803456,lng:34.7955787,kind:'road',kindLabel:'городской тоннель',surfaceClass:'tunnel',ref:'Begin / Al Parashat Drakhim',tunnel:'known'},
+      {key:'known-begin-kaplan',name:'שיקוע בגין–קפלן / Begin–Kaplan underpass',lat:32.07215,lng:34.79005,kind:'road',kindLabel:'городской underpass',surfaceClass:'underpass',ref:'Begin / Kaplan',tunnel:'known'},
+      {key:'known-azrieli-exit',name:'Azrieli parking exit tunnel',lat:32.07455,lng:34.79130,kind:'road',kindLabel:'автомобильный тоннель',surfaceClass:'tunnel',ref:'Azrieli',tunnel:'known'},
+      {key:'known-rafael-eitan',name:'שיקוע רפאל איתן / Rafael Eitan underpass',lat:32.0612,lng:34.8370,kind:'road',kindLabel:'городской underpass',surfaceClass:'underpass',ref:'Рамат-Ган',tunnel:'known'},
+      {key:'known-einstein',name:'שיקוע איינשטיין / Einstein underpass',lat:32.1133,lng:34.7952,kind:'road',kindLabel:'строящийся underpass',surfaceClass:'underpass',ref:'Тель-Авив',tunnel:'construction'},
+      {key:'known-kugel',name:'שיקוע קוגל / Kugel underpass',lat:32.0179,lng:34.7728,kind:'road',kindLabel:'городской underpass',surfaceClass:'underpass',ref:'Холон',tunnel:'known'},
+      {key:'known-north-cbd',name:'Northern CBD service-road tunnel',lat:32.0789,lng:34.7952,kind:'road',kindLabel:'автомобильный тоннель',surfaceClass:'tunnel',ref:'מע״ר צפוני',tunnel:'known'}
     ];
 
     async function loadTunnels(){
@@ -387,19 +430,11 @@
     function dist(a,b){if(!a||!b)return Infinity;const R=6371e3,p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,dp=(b.lat-a.lat)*Math.PI/180,dl=(b.lng-a.lng)*Math.PI/180,x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
     function age(ts){const s=Math.max(0,Math.floor((Date.now()-(ts||0))/1000));return s<10?'сейчас':s<60?s+'с назад':Math.floor(s/60)+'м назад'}
     function updateLiveSources(){
-      const src=map.getSource('live-trails');if(src)src.setData(liveTrailFeatures());
-      liveMembers.forEach((m,id)=>{
-        const p=m.payload,pos=p?.pos;if(!pos)return;
-        if(!m.marker){
-          const el=document.createElement('div');el.className='liveMarker';el.textContent=p.name||'LIVE';
-          m.marker=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([pos.lng,pos.lat]).setPopup(new maplibregl.Popup({offset:24}).setHTML('<b>'+esc(p.name||'LIVE')+'</b><br><small>GPS '+age(p.ts)+'</small>')).addTo(map);
-        }else{
-          m.marker.setLngLat([pos.lng,pos.lat]);m.marker.getElement().textContent=p.name||'LIVE';
-          m.marker.getPopup().setHTML('<b>'+esc(p.name||'LIVE')+'</b><br><small>GPS '+age(p.ts)+(Number.isFinite(pos.accuracy)?' · ±'+Math.round(pos.accuracy)+' м':'')+'</small>');
-        }
-      });
+      const trails=map.getSource('live-trails'),points=map.getSource('live-points');
+      if(trails)trails.setData(liveTrailFeatures());
+      if(points)points.setData(livePointFeatures());
     }
-    function upsertLive(p){if(!p?.id||!p?.pos)return;const cur=liveMembers.get(p.id)||{payload:null,marker:null};cur.payload=p;liveMembers.set(p.id,cur);if(map.loaded())updateLiveSources()}
+    function upsertLive(p){if(!p?.id||!p?.pos)return;liveMembers.set(p.id,{payload:p});if(map.loaded())updateLiveSources()}
     function setLiveStatus(text,online=false){els.liveStatusText.textContent=text;els.liveStatus.classList.toggle('online',online);els.liveStatus.classList.toggle('tracking',tracking)}
     const client=mqtt.connect(BROKER,{clientId:'tat_yk_'+Math.random().toString(16).slice(2),clean:true,reconnectPeriod:2500,connectTimeout:10000,keepalive:30});
     client.on('connect',()=>{setLiveStatus('LIVE · '+room.slice(0,6),true);client.subscribe(LIVE_BASE+'/member/+')});
@@ -440,7 +475,9 @@
       loadTunnels();
     });
 
-    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{activeTab=b.dataset.tab;updateTabs();render()}));
+    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{activeTab=b.dataset.tab;updateTabs();render();if(innerWidth<=780)els.panel.classList.add('expanded')}));
+    els.panelToggle.onclick=()=>els.panel.classList.toggle('expanded');
+    map.on('click',e=>{if(innerWidth<=780&&els.panel.classList.contains('expanded')&&!e.originalEvent?.target?.closest?.('.panel'))els.panel.classList.remove('expanded')});
     document.getElementById('resetView').onclick=()=>map.flyTo({...ISRAEL_VIEW,duration:1200});
     document.getElementById('closePeek').onclick=()=>els.peek.classList.remove('show');
     els.focusMain.onclick=focusSelected;
