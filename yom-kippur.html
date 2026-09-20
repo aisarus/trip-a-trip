@@ -86,6 +86,13 @@
     }
     .spin{width:16px;height:16px;border:2px solid #405066;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(1turn)}}
     .toast{position:fixed;z-index:11;left:50%;bottom:20px;transform:translateX(-50%);max-width:min(560px,calc(100vw - 30px));padding:10px 13px;border-radius:999px;background:#111a27;border:1px solid var(--line);box-shadow:var(--shadow);font-size:11px;color:#d8e2ed;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}
+    .iconbtn.active{background:#eafff4;color:#07130c;border-color:#eafff4}
+    .liveStatus{pointer-events:auto;display:flex;align-items:center;gap:7px;background:rgba(7,11,18,.88);border:1px solid var(--line);border-radius:999px;padding:9px 11px;font-size:11px;color:#aab7c8;backdrop-filter:blur(18px);box-shadow:var(--shadow)}
+    .liveStatus i{width:8px;height:8px;border-radius:50%;background:#66758a}.liveStatus.online i{background:var(--green);box-shadow:0 0 0 5px rgba(87,227,137,.1)}.liveStatus.tracking{color:#eafff4;border-color:rgba(87,227,137,.45)}
+    .liveMarker{min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:#06131a;border:2px solid #fff;box-shadow:0 5px 22px rgba(0,0,0,.5),0 0 0 7px rgba(82,229,255,.16);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:900;white-space:nowrap;position:relative}
+    .liveMarker:before{content:'';position:absolute;inset:-8px;border:2px solid rgba(82,229,255,.48);border-radius:999px;animation:pulse 1.8s ease-out infinite}@keyframes pulse{0%{transform:scale(.72);opacity:.9}100%{transform:scale(1.55);opacity:0}}
+    .dot.under{background:var(--orange)}
+    .privacyNote{font-size:10px;color:#728399;padding:0 2px 10px;line-height:1.4}
 
     @media(max-width:780px){
       .pill.hideMobile{display:none}.panel{left:10px;right:10px;top:auto;bottom:10px;width:auto;height:47vh;border-radius:22px}.hero{padding:14px 15px 10px}h1{font-size:20px;margin:8px 0 6px}.warning{display:none}
@@ -100,7 +107,10 @@
   <div class="top">
     <div class="brand"><div class="logo">T</div><div><b>Trip-a-Trip</b><small>Yom Kippur · Israel</small></div></div>
     <div class="spacer"></div>
-    <div class="pill hideMobile"><strong id="tunnelCountTop">—</strong> тоннелей · OSM live</div>
+    <div class="pill hideMobile"><strong id="tunnelCountTop">—</strong> подземных участков · OSM live</div>
+    <div class="liveStatus" id="liveStatus"><i></i><span id="liveStatusText">LIVE канал…</span></div>
+    <button class="iconbtn" id="shareLive" title="Поделиться LIVE-ссылкой">↗ LIVE</button>
+    <button class="iconbtn" id="liveBtn" title="Транслировать моё местоположение">◎ GPS</button>
     <button class="iconbtn" id="resetView" title="Весь Израиль">⌖ Израиль</button>
   </div>
 
@@ -121,6 +131,7 @@
   <div class="legend">
     <span><i style="background:#52e5ff"></i>автодорожный тоннель</span>
     <span><i style="background:#c08cff"></i>ж/д тоннель</span>
+    <span><i style="background:#ff9a3d"></i>городской underpass / covered</span>
     <span><i style="background:#57e389"></i>роллер-маршрут</span>
   </div>
 
@@ -134,6 +145,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
   <script>
   (() => {
     const ISRAEL_VIEW = { center:[35.02,31.72], zoom:7.15, pitch:20, bearing:0 };
@@ -141,9 +153,21 @@
       list:document.getElementById('list'), loading:document.getElementById('loading'), toast:document.getElementById('toast'),
       peek:document.getElementById('peek'), gmap:document.getElementById('gmap'), peekTitle:document.getElementById('peekTitle'),
       peekMeta:document.getElementById('peekMeta'), openGoogle:document.getElementById('openGoogle'), focusMain:document.getElementById('focusMain'),
-      tunnelCountTop:document.getElementById('tunnelCountTop')
+      tunnelCountTop:document.getElementById('tunnelCountTop'),
+      liveBtn:document.getElementById('liveBtn'), shareLive:document.getElementById('shareLive'),
+      liveStatus:document.getElementById('liveStatus'), liveStatusText:document.getElementById('liveStatusText')
     };
     let activeTab='routes', tunnels=[], selected=null;
+    const qs=new URLSearchParams(location.search);
+    let room=qs.get('room');
+    if(!room){room=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/-/g,'');qs.set('room',room);history.replaceState(null,'',location.pathname+'?'+qs.toString()+location.hash)}
+    const LIVE_BASE='trip-a-trip/v1/'+room, BROKER='wss://broker.emqx.io:8084/mqtt';
+    const rid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+    const deviceId=localStorage.getItem('tat-device-'+room)||rid();localStorage.setItem('tat-device-'+room,deviceId);
+    const myName=localStorage.getItem('tat-yk-name-'+room)||'Я';
+    let tracking=false,watchId=null,wakeLock=null,lastPublished=null,lastPublishAt=0;
+    let myTrail=[];try{myTrail=JSON.parse(localStorage.getItem('tat-trail-'+room+'-'+deviceId)||'[]')}catch(e){}if(!Array.isArray(myTrail))myTrail=[];
+    const liveMembers=new Map();
 
     const routes = [
       {
@@ -221,7 +245,10 @@
       return {type:'FeatureCollection',features:routes.map((r,i)=>({type:'Feature',properties:{id:r.id,name:r.name,idx:i},geometry:{type:'LineString',coordinates:r.coords}}))};
     }
     function tunnelFeatures(){
-      return {type:'FeatureCollection',features:tunnels.map((t,i)=>({type:'Feature',properties:{idx:i,name:t.name||'Тоннель',kind:t.kind},geometry:{type:'Point',coordinates:[t.lng,t.lat]}}))};
+      return {type:'FeatureCollection',features:tunnels.map((t,i)=>({type:'Feature',properties:{idx:i,name:t.name||'Тоннель',kind:t.kind,surfaceClass:t.surfaceClass||'tunnel'},geometry:{type:'Point',coordinates:[t.lng,t.lat]}}))};
+    }
+    function liveTrailFeatures(){
+      return {type:'FeatureCollection',features:[...liveMembers.values()].map(m=>({type:'Feature',properties:{id:m.payload.id,name:m.payload.name||'LIVE'},geometry:{type:'LineString',coordinates:(m.payload.trail||[]).map(p=>[p.lng,p.lat])}})).filter(f=>f.geometry.coordinates.length>1)};
     }
 
     function addLayers(){
@@ -229,8 +256,12 @@
       map.addLayer({id:'route-glow',type:'line',source:'routes',paint:{'line-color':'#57e389','line-width':10,'line-opacity':.12,'line-blur':4}});
       map.addLayer({id:'routes',type:'line',source:'routes',paint:{'line-color':'#57e389','line-width':['interpolate',['linear'],['zoom'],6,2.2,13,5.2],'line-opacity':.95}});
       map.addSource('tunnels',{type:'geojson',data:tunnelFeatures()});
-      map.addLayer({id:'tunnel-halo',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,5,12,10],'circle-color':['case',['==',['get','kind'],'rail'],'#c08cff','#52e5ff'],'circle-opacity':.14}});
-      map.addLayer({id:'tunnels',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,2.6,12,5.5],'circle-color':['case',['==',['get','kind'],'rail'],'#c08cff','#52e5ff'],'circle-stroke-color':'#071018','circle-stroke-width':1.5,'circle-opacity':.95}});
+      const tunnelColor=['case',['==',['get','kind'],'rail'],'#c08cff',['==',['get','surfaceClass'],'underpass'],'#ff9a3d','#52e5ff'];
+      map.addLayer({id:'tunnel-halo',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,5,12,10],'circle-color':tunnelColor,'circle-opacity':.15}});
+      map.addLayer({id:'tunnels',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,2.8,12,5.8],'circle-color':tunnelColor,'circle-stroke-color':'#071018','circle-stroke-width':1.5,'circle-opacity':.98}});
+      map.addSource('live-trails',{type:'geojson',data:liveTrailFeatures()});
+      map.addLayer({id:'live-trail-glow',type:'line',source:'live-trails',paint:{'line-color':'#52e5ff','line-width':10,'line-opacity':.13,'line-blur':4}});
+      map.addLayer({id:'live-trails',type:'line',source:'live-trails',paint:{'line-color':'#52e5ff','line-width':4,'line-opacity':.9}});
       map.on('mouseenter','tunnels',()=>map.getCanvas().style.cursor='pointer');
       map.on('mouseleave','tunnels',()=>map.getCanvas().style.cursor='');
       map.on('click','tunnels',e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const t=tunnels[Number(i)];selectTunnel(t)}});
@@ -259,9 +290,10 @@
           routes.map(r=>'<article class="card" data-id="'+esc(r.id)+'"><div class="cardTop"><span class="dot route"></span><div><h3>'+esc(r.name)+'</h3><div class="meta">'+esc(r.city)+' · '+esc(r.note)+'</div></div></div><div class="routeStat"><span><b>'+esc(r.km)+' км</b>примерно</span><span><b>'+esc(r.level)+'</b>сложность</span><span><b>'+esc(r.vibe.split(' + ')[0])+'</b>вайб</span></div></article>').join('');
         els.list.querySelectorAll('.card').forEach(el=>el.onclick=()=>selectRoute(routes.find(r=>r.id===el.dataset.id)));
       }else{
-        const roads=tunnels.filter(t=>t.kind==='road').length, rails=tunnels.filter(t=>t.kind==='rail').length;
-        els.list.innerHTML='<div class="sectionTitle"><span>OSM тоннели · авто '+roads+' / ж-д '+rails+'</span><span class="count">'+tunnels.length+'</span></div>'+
-          (tunnels.length?tunnels.slice(0,400).map(t=>'<article class="card" data-key="'+esc(t.key)+'"><div class="cardTop"><span class="dot '+(t.kind==='rail'?'rail':'')+'"></span><div><h3>'+esc(t.name||('Тоннель '+(t.ref||t.road||'')))+'</h3><div class="meta">'+esc(t.kindLabel)+' · '+esc(t.ref||t.road||t.operator||'без номера')+'</div><div class="tags">'+(t.lit?'<span class="tag">💡 '+esc(t.lit)+'</span>':'')+(t.maxspeed?'<span class="tag">'+esc(t.maxspeed)+' км/ч</span>':'')+(t.tunnel?'<span class="tag">'+esc(t.tunnel)+'</span>':'')+'</div></div></div></article>').join(''):'<div class="empty">Тоннели ещё загружаются или Overpass недоступен. Маршруты при этом работают.</div>');
+        const roads=tunnels.filter(t=>t.kind==='road'&&t.surfaceClass==='tunnel').length, rails=tunnels.filter(t=>t.kind==='rail').length, under=tunnels.filter(t=>t.surfaceClass==='underpass').length;
+        els.list.innerHTML='<div class="sectionTitle"><span>тоннели '+roads+' · ж/д '+rails+' · underpass '+under+'</span><span class="count">'+tunnels.length+'</span></div>'+
+          '<div class="privacyNote">Оранжевые точки — covered / layer&lt;0: это подземные или пониженные городские участки, не всегда полноценные тоннели.</div>'+
+          (tunnels.length?tunnels.slice(0,600).map(t=>'<article class="card" data-key="'+esc(t.key)+'"><div class="cardTop"><span class="dot '+(t.kind==='rail'?'rail':t.surfaceClass==='underpass'?'under':'')+'"></span><div><h3>'+esc(t.name||((t.surfaceClass==='underpass'?'Подземный участок ':'Тоннель ')+(t.ref||t.road||'')))+'</h3><div class="meta">'+esc(t.kindLabel)+' · '+esc(t.ref||t.road||t.operator||'без номера')+'</div><div class="tags">'+(t.lit?'<span class="tag">💡 '+esc(t.lit)+'</span>':'')+(t.maxspeed?'<span class="tag">'+esc(t.maxspeed)+' км/ч</span>':'')+(t.surfaceClass?'<span class="tag">'+esc(t.surfaceClass)+'</span>':'')+'</div></div></div></article>').join(''):'<div class="empty">Подземные участки ещё загружаются или Overpass недоступен. Маршруты при этом работают.</div>');
         els.list.querySelectorAll('.card').forEach(el=>el.onclick=()=>selectTunnel(tunnels.find(t=>t.key===el.dataset.key)));
       }
     }
@@ -270,14 +302,22 @@
     }
 
     const fallbackTunnels = [
-      {key:'fallback-carmel',name:'Carmel Tunnels / מנהרות הכרמל',lat:32.7938,lng:34.9880,kind:'road',kindLabel:'автодорожный',ref:'23',tunnel:'yes',operator:'Carmelton'},
-      {key:'fallback-harel',name:'Harel tunnels / מנהרות הראל',lat:31.8000,lng:35.1220,kind:'road',kindLabel:'автодорожный',ref:'1',tunnel:'yes'},
-      {key:'fallback-hwy16',name:'Highway 16 tunnels / מנהרות כביש 16',lat:31.7824,lng:35.1765,kind:'road',kindLabel:'автодорожный',ref:'16',tunnel:'yes'},
-      {key:'fallback-mesila-rail',name:'Jerusalem rail tunnel area',lat:31.7892,lng:35.2010,kind:'rail',kindLabel:'железнодорожный',ref:'rail',tunnel:'yes'}
+      {key:'fallback-carmel',name:'Carmel Tunnels / מנהרות הכרמל',lat:32.7938,lng:34.9880,kind:'road',kindLabel:'автодорожный',ref:'23',tunnel:'yes',surfaceClass:'tunnel',operator:'Carmelton'},
+      {key:'fallback-harel',name:'Harel tunnels / מנהרות הראל',lat:31.8000,lng:35.1220,kind:'road',kindLabel:'автодорожный',ref:'1',tunnel:'yes',surfaceClass:'tunnel'},
+      {key:'fallback-hwy16',name:'Highway 16 tunnels / מנהרות כביש 16',lat:31.7824,lng:35.1765,kind:'road',kindLabel:'автодорожный',ref:'16',tunnel:'yes',surfaceClass:'tunnel'},
+      {key:'fallback-mesila-rail',name:'Jerusalem rail tunnel area',lat:31.7892,lng:35.2010,kind:'rail',kindLabel:'железнодорожный',ref:'rail',tunnel:'yes',surfaceClass:'tunnel'}
+    ];
+    const knownCentralUnderground=[
+      {key:'known-aluf-hayarden',name:'מנהרת אלוף שדה–הירדן / Aluf Sadeh–HaYarden',lat:32.058354,lng:34.828604,kind:'road',kindLabel:'городской underpass',surfaceClass:'underpass',ref:'Рамат-Ган',tunnel:'known'},
+      {key:'known-rabin',name:'מנהרת רבין / Rabin tunnel (2026)',lat:32.06528,lng:34.812595,kind:'road',kindLabel:'городской тоннель',surfaceClass:'tunnel',ref:'Рамат-Ган',tunnel:'known'},
+      {key:'known-laguardia',name:'La Guardia–HaMasger underpass',lat:32.05986,lng:34.78448,kind:'road',kindLabel:'городской underpass',surfaceClass:'underpass',ref:'Тель-Авив',tunnel:'known'},
+      {key:'known-carlebach',name:'Carlebach / Yitzhak Sadeh underground junction',lat:32.0656,lng:34.7832,kind:'road',kindLabel:'городской тоннель',surfaceClass:'tunnel',ref:'Тель-Авив',tunnel:'known'},
+      {key:'known-eliav',name:'מנהרת אריה לובה אליאב / Sarona underground road',lat:32.0718,lng:34.7867,kind:'road',kindLabel:'подземная городская дорога',surfaceClass:'tunnel',ref:'Sarona',tunnel:'known'},
+      {key:'known-volovelsky',name:'לולאת וולובלסקי / Volovelsky Loop',lat:32.0808,lng:34.7970,kind:'road',kindLabel:'городской тоннель',surfaceClass:'tunnel',ref:'Begin / Al Parashat Drakhim',tunnel:'known'}
     ];
 
     async function loadTunnels(){
-      const q='[out:json][timeout:25];area["ISO3166-1"="IL"][admin_level=2]->.a;(way(area.a)["tunnel"]["highway"];way(area.a)["tunnel"]["railway"];);out center tags;';
+      const q='[out:json][timeout:35];area["ISO3166-1"="IL"][admin_level=2]->.a;(way(area.a)["tunnel"]["highway"];way(area.a)["tunnel"]["railway"];way(area.a)["covered"="yes"]["highway"];way(area.a)["highway"]["layer"~"^-[1-9]"];);out center tags;';
       const endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
       let data=null, lastErr=null;
       for(const url of endpoints){
@@ -288,27 +328,79 @@
         }catch(e){lastErr=e}
       }
       if(!data?.elements?.length){
-        tunnels=fallbackTunnels;
-        toast('Overpass не ответил — показываю резервный набор известных тоннелей');
+        tunnels=[...fallbackTunnels,...knownCentralUnderground];
+        toast('Overpass не ответил — показываю резервный набор + центр ТА/РГ');
       }else{
         tunnels=data.elements.map(x=>{
           const c=x.center; const tags=x.tags||{}; if(!c||!Number.isFinite(c.lat)||!Number.isFinite(c.lon))return null;
           const kind=tags.railway?'rail':'road';
+          const surfaceClass=(tags.tunnel&&tags.tunnel!=='no')?'tunnel':'underpass';
           return {
-            key:String(x.type)+'-'+x.id,lat:c.lat,lng:c.lon,kind,kindLabel:kind==='rail'?'железнодорожный':'автодорожный',
+            key:String(x.type)+'-'+x.id,lat:c.lat,lng:c.lon,kind,kindLabel:kind==='rail'?'железнодорожный':surfaceClass==='underpass'?'городской underpass / covered':'автодорожный',
             name:tags.name||tags['name:en']||tags['name:he']||'',ref:tags.ref||'',road:tags.highway||tags.railway||'',
-            tunnel:tags.tunnel||'',lit:tags.lit||'',maxspeed:tags.maxspeed||'',operator:tags.operator||''
+            tunnel:tags.tunnel||'',covered:tags.covered||'',layer:tags.layer||'',surfaceClass,lit:tags.lit||'',maxspeed:tags.maxspeed||'',operator:tags.operator||''
           };
         }).filter(Boolean).filter(t=>t.tunnel!=='no');
-        tunnels.sort((a,b)=>(a.kind===b.kind?0:(a.kind==='road'?-1:1))||(a.name||'zzz').localeCompare(b.name||'zzz'));
+        const merged=new Map(tunnels.map(t=>[t.key,t]));
+        knownCentralUnderground.forEach(t=>merged.set(t.key,t));
+        tunnels=[...merged.values()];
+        tunnels.sort((a,b)=>(a.kind===b.kind?0:(a.kind==='road'?-1:1))||(a.surfaceClass===b.surfaceClass?0:(a.surfaceClass==='tunnel'?-1:1))||(a.name||'zzz').localeCompare(b.name||'zzz'));
       }
       els.tunnelCountTop.textContent=tunnels.length;
       if(map.getSource('tunnels')) map.getSource('tunnels').setData(tunnelFeatures());
       els.loading.style.display='none'; render();
     }
 
+    function dist(a,b){if(!a||!b)return Infinity;const R=6371e3,p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,dp=(b.lat-a.lat)*Math.PI/180,dl=(b.lng-a.lng)*Math.PI/180,x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
+    function age(ts){const s=Math.max(0,Math.floor((Date.now()-(ts||0))/1000));return s<10?'сейчас':s<60?s+'с назад':Math.floor(s/60)+'м назад'}
+    function updateLiveSources(){
+      const src=map.getSource('live-trails');if(src)src.setData(liveTrailFeatures());
+      liveMembers.forEach((m,id)=>{
+        const p=m.payload,pos=p?.pos;if(!pos)return;
+        if(!m.marker){
+          const el=document.createElement('div');el.className='liveMarker';el.textContent=p.name||'LIVE';
+          m.marker=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([pos.lng,pos.lat]).setPopup(new maplibregl.Popup({offset:24}).setHTML('<b>'+esc(p.name||'LIVE')+'</b><br><small>GPS '+age(p.ts)+'</small>')).addTo(map);
+        }else{
+          m.marker.setLngLat([pos.lng,pos.lat]);m.marker.getElement().textContent=p.name||'LIVE';
+          m.marker.getPopup().setHTML('<b>'+esc(p.name||'LIVE')+'</b><br><small>GPS '+age(p.ts)+(Number.isFinite(pos.accuracy)?' · ±'+Math.round(pos.accuracy)+' м':'')+'</small>');
+        }
+      });
+    }
+    function upsertLive(p){if(!p?.id||!p?.pos)return;const cur=liveMembers.get(p.id)||{payload:null,marker:null};cur.payload=p;liveMembers.set(p.id,cur);if(map.loaded())updateLiveSources()}
+    function setLiveStatus(text,online=false){els.liveStatusText.textContent=text;els.liveStatus.classList.toggle('online',online);els.liveStatus.classList.toggle('tracking',tracking)}
+    const client=mqtt.connect(BROKER,{clientId:'tat_yk_'+Math.random().toString(16).slice(2),clean:true,reconnectPeriod:2500,connectTimeout:10000,keepalive:30});
+    client.on('connect',()=>{setLiveStatus('LIVE · '+room.slice(0,6),true);client.subscribe(LIVE_BASE+'/member/+')});
+    client.on('reconnect',()=>setLiveStatus('LIVE reconnect…',false));client.on('offline',()=>setLiveStatus('LIVE offline',false));client.on('error',()=>setLiveStatus('LIVE error',false));
+    client.on('message',(topic,b)=>{try{upsertLive(JSON.parse(b.toString()))}catch(e){}});
+    async function acquireWakeLock(){try{if('wakeLock'in navigator)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
+    async function releaseWakeLock(){try{await wakeLock?.release()}catch(e){}wakeLock=null}
+    function publishMyPos(g){
+      const p={lat:g.coords.latitude,lng:g.coords.longitude,accuracy:g.coords.accuracy,altitude:g.coords.altitude,speed:g.coords.speed,heading:g.coords.heading,ts:g.timestamp||Date.now()},now=Date.now();
+      if(lastPublished&&dist(lastPublished,p)<5&&now-lastPublishAt<8000)return;
+      lastPublished=p;lastPublishAt=now;const prev=myTrail.at(-1);
+      if(!prev||dist(prev,p)>=5||now-(prev.ts||0)>12000)myTrail.push({lat:p.lat,lng:p.lng,altitude:p.altitude,ts:now});
+      if(myTrail.length>600)myTrail=myTrail.slice(-600);localStorage.setItem('tat-trail-'+room+'-'+deviceId,JSON.stringify(myTrail));
+      const payload={v:2,id:deviceId,name:myName,ts:now,pos:p,trail:myTrail.slice(-350)};
+      if(client.connected)client.publish(LIVE_BASE+'/member/'+deviceId,JSON.stringify(payload),{qos:0,retain:true});
+      upsertLive(payload);
+      if(!publishMyPos.centered){publishMyPos.centered=true;map.flyTo({center:[p.lng,p.lat],zoom:15.5,pitch:46,bearing:18,duration:1200})}
+    }
+    function startTracking(){
+      if(!navigator.geolocation){toast('В этом браузере нет GPS');return}
+      tracking=true;els.liveBtn.classList.add('active');els.liveBtn.textContent='■ GPS';setLiveStatus('GPS транслируется',client.connected);acquireWakeLock();
+      watchId=navigator.geolocation.watchPosition(publishMyPos,e=>{toast(e.code===1?'Разреши геолокацию для сайта':'Не удалось получить GPS');stopTracking()},{enableHighAccuracy:true,maximumAge:4000,timeout:20000});
+    }
+    function stopTracking(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;tracking=false;els.liveBtn.classList.remove('active');els.liveBtn.textContent='◎ GPS';setLiveStatus(client.connected?'LIVE · '+room.slice(0,6):'LIVE offline',client.connected);releaseWakeLock()}
+    async function shareLive(){
+      const url=location.href,title='Trip-a-Trip · Yom Kippur LIVE',text='Смотри мою геопозицию и маршрут на карте';
+      try{if(navigator.share)await navigator.share({title,text,url});else{await navigator.clipboard.writeText(url);toast('LIVE-ссылка скопирована')}}catch(e){}
+    }
+    els.liveBtn.onclick=()=>tracking?stopTracking():startTracking();els.shareLive.onclick=shareLive;
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&tracking&&!wakeLock)acquireWakeLock()});
+    setInterval(()=>{if(client.connected&&!tracking)setLiveStatus('LIVE · '+room.slice(0,6),true);updateLiveSources()},12000);
+
     map.on('load',()=>{
-      addLayers(); render(); loadTunnels();
+      addLayers(); render(); loadTunnels(); updateLiveSources();
     });
 
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{activeTab=b.dataset.tab;updateTabs();render()}));
