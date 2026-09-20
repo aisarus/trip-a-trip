@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#070b12" />
+  <title>Trip-a-Trip · Yom Kippur Roll Map</title>
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <style>
+    :root{
+      --bg:#070b12;--panel:rgba(10,15,24,.88);--panel2:rgba(17,24,39,.92);--text:#f8fafc;--muted:#a6b0c0;
+      --line:rgba(255,255,255,.11);--cyan:#52e5ff;--orange:#ff9a3d;--red:#ff5364;--green:#57e389;
+      --shadow:0 18px 55px rgba(0,0,0,.38);--r:22px
+    }
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+    button,a{font:inherit}a{color:inherit}
+    #map{position:fixed;inset:0;background:#101822}
+    .maplibregl-canvas{outline:none}
+    .shade{position:fixed;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(2,6,12,.5) 0,rgba(2,6,12,.06) 42%,rgba(2,6,12,.02) 100%)}
+    .top{
+      position:fixed;z-index:8;left:16px;right:16px;top:max(14px,env(safe-area-inset-top));
+      display:flex;align-items:center;gap:10px;pointer-events:none
+    }
+    .brand,.pill,.iconbtn{pointer-events:auto;background:rgba(7,11,18,.86);backdrop-filter:blur(18px);border:1px solid var(--line);box-shadow:var(--shadow)}
+    .brand{display:flex;align-items:center;gap:10px;border-radius:999px;padding:9px 13px 9px 10px}
+    .logo{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#57e389,#52e5ff);color:#041014;font-weight:950}
+    .brand b{font-size:13px;letter-spacing:.01em}.brand small{display:block;color:var(--muted);font-size:10px;margin-top:1px}
+    .spacer{flex:1}
+    .pill{border-radius:999px;padding:10px 13px;color:#e5edf8;font-size:12px}
+    .pill strong{color:var(--cyan)}
+    .iconbtn{border-radius:999px;border:1px solid var(--line);color:white;padding:10px 13px;cursor:pointer}
+    .iconbtn:hover{background:#121b29}
+
+    .panel{
+      position:fixed;z-index:7;left:16px;top:76px;bottom:18px;width:min(400px,calc(100vw - 32px));
+      background:linear-gradient(180deg,rgba(9,14,23,.94),rgba(7,11,18,.91));
+      border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);backdrop-filter:blur(22px);
+      display:flex;flex-direction:column;overflow:hidden
+    }
+    .hero{padding:18px 18px 13px;border-bottom:1px solid var(--line)}
+    .eyebrow{display:flex;align-items:center;gap:7px;color:#c8d2df;font-size:11px;text-transform:uppercase;letter-spacing:.12em}
+    .liveDot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(87,227,137,.12)}
+    h1{font-size:25px;line-height:1.04;margin:10px 0 8px;letter-spacing:-.04em}
+    .sub{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+    .warning{margin-top:12px;padding:11px 12px;border:1px solid rgba(255,154,61,.25);background:rgba(255,154,61,.08);border-radius:14px;font-size:11px;line-height:1.4;color:#ffd7b3}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:11px;border-bottom:1px solid var(--line)}
+    .tab{border:1px solid var(--line);background:#0d1420;color:#9aa8bb;border-radius:12px;padding:10px;cursor:pointer;font-weight:750}
+    .tab.active{background:#f8fafc;color:#070b12}
+    .scroll{padding:12px;overflow:auto;overscroll-behavior:contain}
+    .sectionTitle{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 10px;font-size:11px;color:#99a8ba;text-transform:uppercase;letter-spacing:.1em}
+    .count{font-variant-numeric:tabular-nums;color:#d8e2ef}
+    .card{border:1px solid var(--line);background:rgba(18,26,39,.72);border-radius:16px;padding:13px;margin-bottom:9px;cursor:pointer;transition:.18s ease}
+    .card:hover{transform:translateY(-1px);border-color:rgba(82,229,255,.35);background:rgba(22,31,46,.86)}
+    .card.selected{border-color:rgba(82,229,255,.75);box-shadow:0 0 0 2px rgba(82,229,255,.08) inset}
+    .cardTop{display:flex;gap:10px;align-items:flex-start}
+    .dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex:0 0 auto;background:var(--cyan);box-shadow:0 0 0 5px rgba(82,229,255,.08)}
+    .dot.rail{background:#c08cff}.dot.route{background:var(--green)}
+    .card h3{margin:0;font-size:14px;line-height:1.2}.meta{margin-top:5px;color:#8fa0b6;font-size:11px;line-height:1.35}
+    .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.tag{font-size:10px;border-radius:999px;padding:5px 7px;background:#0b111b;border:1px solid var(--line);color:#bdc7d5}
+    .routeStat{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.routeStat span{background:#0a111a;border:1px solid var(--line);border-radius:10px;padding:7px;font-size:10px;color:#93a4b8}.routeStat b{display:block;color:#f1f5f9;font-size:12px;margin-bottom:2px}
+    .empty{padding:18px 12px;color:#8ea0b5;font-size:12px;text-align:center;line-height:1.5}
+
+    .legend{
+      position:fixed;z-index:6;right:16px;bottom:18px;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:460px
+    }
+    .legend span{background:rgba(7,11,18,.84);border:1px solid var(--line);border-radius:999px;padding:8px 10px;font-size:10px;color:#c8d1de;backdrop-filter:blur(12px)}
+    .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0}
+    .maplibregl-ctrl-top-right{top:64px;right:8px}.maplibregl-ctrl-group{background:#101823!important;border:1px solid var(--line);box-shadow:var(--shadow)!important}.maplibregl-ctrl button span{filter:invert(1)}
+
+    .peek{
+      position:fixed;z-index:9;right:16px;top:76px;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 170px);
+      border:1px solid var(--line);border-radius:20px;background:rgba(8,13,21,.95);box-shadow:var(--shadow);backdrop-filter:blur(20px);
+      overflow:hidden;display:none
+    }
+    .peek.show{display:block}.peekHead{display:flex;align-items:center;gap:10px;padding:12px 13px;border-bottom:1px solid var(--line)}
+    .peekHead b{font-size:13px}.peekHead span{font-size:10px;color:#8fa0b6;display:block;margin-top:2px}.close{margin-left:auto;border:0;background:transparent;color:#9ba9ba;font-size:22px;cursor:pointer}
+    .gmap{width:100%;height:260px;border:0;display:block;background:#111827}
+    .peekActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}
+    .action{display:block;text-align:center;text-decoration:none;border:1px solid var(--line);background:#111a27;color:white;border-radius:12px;padding:10px;font-size:11px;font-weight:800}
+    .action.primary{background:#eafcff;color:#071016;border-color:#eafcff}
+
+    .loading{
+      position:fixed;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(5,9,15,.9);border:1px solid var(--line);
+      border-radius:16px;padding:12px 15px;box-shadow:var(--shadow);font-size:12px;color:#d8e3ef;display:flex;gap:9px;align-items:center
+    }
+    .spin{width:16px;height:16px;border:2px solid #405066;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(1turn)}}
+    .toast{position:fixed;z-index:11;left:50%;bottom:20px;transform:translateX(-50%);max-width:min(560px,calc(100vw - 30px));padding:10px 13px;border-radius:999px;background:#111a27;border:1px solid var(--line);box-shadow:var(--shadow);font-size:11px;color:#d8e2ed;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}
+
+    @media(max-width:780px){
+      .pill.hideMobile{display:none}.panel{left:10px;right:10px;top:auto;bottom:10px;width:auto;height:47vh;border-radius:22px}.hero{padding:14px 15px 10px}h1{font-size:20px;margin:8px 0 6px}.warning{display:none}
+      .top{left:10px;right:10px}.legend{display:none}.maplibregl-ctrl-top-right{top:58px}
+      .peek{left:10px;right:10px;top:92px;width:auto;max-height:42vh}.gmap{height:190px}
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div><div class="shade"></div>
+
+  <div class="top">
+    <div class="brand"><div class="logo">T</div><div><b>Trip-a-Trip</b><small>Yom Kippur · Israel</small></div></div>
+    <div class="spacer"></div>
+    <div class="pill hideMobile"><strong id="tunnelCountTop">—</strong> тоннелей · OSM live</div>
+    <button class="iconbtn" id="resetView" title="Весь Израиль">⌖ Израиль</button>
+  </div>
+
+  <aside class="panel">
+    <div class="hero">
+      <div class="eyebrow"><span class="liveDot"></span> Йом-Кипур 5787 · 20–21.09.2026</div>
+      <h1>Тоннели + маршруты для роликов</h1>
+      <p class="sub">Карта вращается и наклоняется. Тоннели загружаются из OpenStreetMap; маршруты — городские эскизы без межгородских шоссе.</p>
+      <div class="warning">⚠️ Машины юридически не запрещены даже в Йом-Кипур. Кармельские тоннели закрыты барьерами 20.09 15:00 → 21.09 21:00. В остальные тоннели на роликах не заезжай.</div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="routes">🛼 Маршруты</button>
+      <button class="tab" data-tab="tunnels">◉ Тоннели</button>
+    </div>
+    <div class="scroll" id="list"></div>
+  </aside>
+
+  <div class="legend">
+    <span><i style="background:#52e5ff"></i>автодорожный тоннель</span>
+    <span><i style="background:#c08cff"></i>ж/д тоннель</span>
+    <span><i style="background:#57e389"></i>роллер-маршрут</span>
+  </div>
+
+  <section class="peek" id="peek">
+    <div class="peekHead"><div><b id="peekTitle">Google Maps</b><span id="peekMeta">выбранная точка</span></div><button class="close" id="closePeek">×</button></div>
+    <iframe class="gmap" id="gmap" title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <div class="peekActions"><a class="action primary" id="openGoogle" target="_blank" rel="noopener">Открыть в Google Maps</a><button class="action" id="focusMain">Показать на карте</button></div>
+  </section>
+
+  <div class="loading" id="loading"><span class="spin"></span><span>Тяну тоннели Израиля из OSM…</span></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script>
+  (() => {
+    const ISRAEL_VIEW = { center:[35.02,31.72], zoom:7.15, pitch:20, bearing:0 };
+    const els = {
+      list:document.getElementById('list'), loading:document.getElementById('loading'), toast:document.getElementById('toast'),
+      peek:document.getElementById('peek'), gmap:document.getElementById('gmap'), peekTitle:document.getElementById('peekTitle'),
+      peekMeta:document.getElementById('peekMeta'), openGoogle:document.getElementById('openGoogle'), focusMain:document.getElementById('focusMain'),
+      tunnelCountTop:document.getElementById('tunnelCountTop')
+    };
+    let activeTab='routes', tunnels=[], selected=null;
+
+    const routes = [
+      {
+        id:'rg-yarkon-sea', name:'Рамат-Ган → Яркон → море', city:'Рамат-Ган / Тель-Авив', km:'≈18', level:'лёгкий', vibe:'ночной город + парк',
+        note:'Самый универсальный: от восточной части парка Яркон к порту и набережной. Плоско, много пространства, легко сократить.',
+        coords:[[34.8350,32.1030],[34.8232,32.1019],[34.8090,32.1023],[34.7940,32.1010],[34.7810,32.1002],[34.7750,32.1040],[34.7714,32.0964],[34.7693,32.0864],[34.7674,32.0772]]
+      },
+      {
+        id:'tlv-sea-rothschild', name:'Порт → набережная → Ротшильд', city:'Тель-Авив', km:'≈13', level:'лёгкий', vibe:'максимум атмосферы',
+        note:'Порт, море, Яффо-север и бульвар Ротшильд. Центральный городской круг; на перекрёстках не расслабляться.',
+        coords:[[34.7746,32.1040],[34.7715,32.0948],[34.7680,32.0830],[34.7651,32.0710],[34.7589,32.0555],[34.7618,32.0520],[34.7697,32.0599],[34.7735,32.0647],[34.7766,32.0718],[34.7769,32.0821],[34.7746,32.1040]]
+      },
+      {
+        id:'herzliya-coast', name:'Парк Герцлия → марина → побережье', city:'Герцлия', km:'≈11', level:'лёгкий', vibe:'просторно + море',
+        note:'Старт у парка, затем к марине и вдоль побережья. Хороший вариант без плотного центра.',
+        coords:[[34.8180,32.1715],[34.8060,32.1692],[34.7945,32.1668],[34.7868,32.1632],[34.7960,32.1515],[34.8065,32.1565],[34.8180,32.1715]]
+      },
+      {
+        id:'haifa-coast', name:'Бат-Галим → парк Хехт', city:'Хайфа', km:'≈9', level:'лёгкий', vibe:'Хайфа без гор',
+        note:'Почти весь кайф Хайфы без убийственного набора высоты: вдоль моря. Кармельские тоннели отмечены отдельно и закрыты.',
+        coords:[[34.9790,32.8330],[34.9682,32.8270],[34.9585,32.8177],[34.9548,32.8071],[34.9554,32.7980]]
+      },
+      {
+        id:'jerusalem-mesila', name:'Первая станция → парк Месила → Малха', city:'Иерусалим', km:'≈10', level:'средний', vibe:'город + старые рельсы',
+        note:'Линейный маршрут по коридору парка Месила. В Иерусалиме рельеф и покрытие меняются — тормоза и защита обязательны.',
+        coords:[[35.2245,31.7650],[35.2180,31.7597],[35.2120,31.7548],[35.2076,31.7480],[35.2042,31.7408],[35.2017,31.7315]]
+      },
+      {
+        id:'beer-sheva-river', name:'Парк Нахаль Беэр-Шева', city:'Беэр-Шева', km:'≈12', level:'лёгкий', vibe:'широко + пустынный вечер',
+        note:'Городской вариант вокруг речного парка. Без межгорода; удобно катить в своём темпе и развернуться раньше.',
+        coords:[[34.7905,31.2410],[34.8048,31.2390],[34.8200,31.2433],[34.8320,31.2495],[34.8230,31.2580],[34.8062,31.2562],[34.7905,31.2410]]
+      }
+    ];
+
+    const map = new maplibregl.Map({
+      container:'map',
+      style:{
+        version:8,
+        sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},
+        layers:[
+          {id:'bg',type:'background',paint:{'background-color':'#0c1118'}},
+          {id:'osm',type:'raster',source:'osm',paint:{'raster-saturation':-0.62,'raster-brightness-max':0.58,'raster-contrast':0.18}}
+        ]
+      },
+      center:ISRAEL_VIEW.center, zoom:ISRAEL_VIEW.zoom, pitch:ISRAEL_VIEW.pitch, bearing:0,
+      minZoom:5.5,maxZoom:18,antialias:true
+    });
+
+    map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+    map.addControl(new maplibregl.ScaleControl({maxWidth:100,unit:'metric'}),'bottom-right');
+
+    function toast(msg){
+      els.toast.textContent=msg; els.toast.classList.add('show'); clearTimeout(toast.t);
+      toast.t=setTimeout(()=>els.toast.classList.remove('show'),2600);
+    }
+    function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+    function gmapEmbed(lng,lat){ return 'https://www.google.com/maps?q='+encodeURIComponent(lat+','+lng)+'&z=15&output=embed'; }
+    function gmapOpen(lng,lat){ return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(lat+','+lng); }
+    function routeCenter(r){ const i=Math.floor(r.coords.length/2); return r.coords[i]; }
+
+    function showPeek(item,type){
+      selected={item,type};
+      const p=type==='route'?routeCenter(item):[item.lng,item.lat];
+      els.peekTitle.textContent=type==='route'?item.name:(item.name||'Тоннель');
+      els.peekMeta.textContent=type==='route'?(item.city+' · '+item.km):(item.kindLabel+' · '+(item.ref||item.road||'без номера'));
+      els.gmap.src=gmapEmbed(p[0],p[1]); els.openGoogle.href=gmapOpen(p[0],p[1]); els.peek.classList.add('show');
+    }
+    function focusSelected(){
+      if(!selected)return;
+      if(selected.type==='route') focusRoute(selected.item);
+      else map.flyTo({center:[selected.item.lng,selected.item.lat],zoom:14,pitch:45,bearing:18,duration:1100});
+    }
+
+    function routeFeatures(){
+      return {type:'FeatureCollection',features:routes.map((r,i)=>({type:'Feature',properties:{id:r.id,name:r.name,idx:i},geometry:{type:'LineString',coordinates:r.coords}}))};
+    }
+    function tunnelFeatures(){
+      return {type:'FeatureCollection',features:tunnels.map((t,i)=>({type:'Feature',properties:{idx:i,name:t.name||'Тоннель',kind:t.kind},geometry:{type:'Point',coordinates:[t.lng,t.lat]}}))};
+    }
+
+    function addLayers(){
+      map.addSource('routes',{type:'geojson',data:routeFeatures()});
+      map.addLayer({id:'route-glow',type:'line',source:'routes',paint:{'line-color':'#57e389','line-width':10,'line-opacity':.12,'line-blur':4}});
+      map.addLayer({id:'routes',type:'line',source:'routes',paint:{'line-color':'#57e389','line-width':['interpolate',['linear'],['zoom'],6,2.2,13,5.2],'line-opacity':.95}});
+      map.addSource('tunnels',{type:'geojson',data:tunnelFeatures()});
+      map.addLayer({id:'tunnel-halo',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,5,12,10],'circle-color':['case',['==',['get','kind'],'rail'],'#c08cff','#52e5ff'],'circle-opacity':.14}});
+      map.addLayer({id:'tunnels',type:'circle',source:'tunnels',paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,2.6,12,5.5],'circle-color':['case',['==',['get','kind'],'rail'],'#c08cff','#52e5ff'],'circle-stroke-color':'#071018','circle-stroke-width':1.5,'circle-opacity':.95}});
+      map.on('mouseenter','tunnels',()=>map.getCanvas().style.cursor='pointer');
+      map.on('mouseleave','tunnels',()=>map.getCanvas().style.cursor='');
+      map.on('click','tunnels',e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const t=tunnels[Number(i)];selectTunnel(t)}});
+      map.on('mouseenter','routes',()=>map.getCanvas().style.cursor='pointer');
+      map.on('mouseleave','routes',()=>map.getCanvas().style.cursor='');
+      map.on('click','routes',e=>{const i=e.features?.[0]?.properties?.idx;if(i!==undefined){const r=routes[Number(i)];selectRoute(r)}});
+    }
+
+    function focusRoute(r){
+      const bounds=r.coords.reduce((b,c)=>b.extend(c),new maplibregl.LngLatBounds(r.coords[0],r.coords[0]));
+      map.fitBounds(bounds,{padding:90,maxZoom:13.8,pitch:36,bearing:12,duration:1100});
+    }
+    function selectRoute(r){
+      activeTab='routes'; updateTabs(); render(); showPeek(r,'route'); focusRoute(r);
+      setTimeout(()=>document.querySelector('[data-id="'+r.id+'"]')?.classList.add('selected'),20);
+    }
+    function selectTunnel(t){
+      activeTab='tunnels'; updateTabs(); render(); showPeek(t,'tunnel');
+      map.flyTo({center:[t.lng,t.lat],zoom:14,pitch:48,bearing:20,duration:1100});
+      setTimeout(()=>document.querySelector('[data-key="'+t.key+'"]')?.classList.add('selected'),20);
+    }
+
+    function render(){
+      if(activeTab==='routes'){
+        els.list.innerHTML='<div class="sectionTitle"><span>Городские маршруты</span><span class="count">'+routes.length+'</span></div>'+
+          routes.map(r=>'<article class="card" data-id="'+esc(r.id)+'"><div class="cardTop"><span class="dot route"></span><div><h3>'+esc(r.name)+'</h3><div class="meta">'+esc(r.city)+' · '+esc(r.note)+'</div></div></div><div class="routeStat"><span><b>'+esc(r.km)+' км</b>примерно</span><span><b>'+esc(r.level)+'</b>сложность</span><span><b>'+esc(r.vibe.split(' + ')[0])+'</b>вайб</span></div></article>').join('');
+        els.list.querySelectorAll('.card').forEach(el=>el.onclick=()=>selectRoute(routes.find(r=>r.id===el.dataset.id)));
+      }else{
+        const roads=tunnels.filter(t=>t.kind==='road').length, rails=tunnels.filter(t=>t.kind==='rail').length;
+        els.list.innerHTML='<div class="sectionTitle"><span>OSM тоннели · авто '+roads+' / ж-д '+rails+'</span><span class="count">'+tunnels.length+'</span></div>'+
+          (tunnels.length?tunnels.slice(0,400).map(t=>'<article class="card" data-key="'+esc(t.key)+'"><div class="cardTop"><span class="dot '+(t.kind==='rail'?'rail':'')+'"></span><div><h3>'+esc(t.name||('Тоннель '+(t.ref||t.road||'')))+'</h3><div class="meta">'+esc(t.kindLabel)+' · '+esc(t.ref||t.road||t.operator||'без номера')+'</div><div class="tags">'+(t.lit?'<span class="tag">💡 '+esc(t.lit)+'</span>':'')+(t.maxspeed?'<span class="tag">'+esc(t.maxspeed)+' км/ч</span>':'')+(t.tunnel?'<span class="tag">'+esc(t.tunnel)+'</span>':'')+'</div></div></div></article>').join(''):'<div class="empty">Тоннели ещё загружаются или Overpass недоступен. Маршруты при этом работают.</div>');
+        els.list.querySelectorAll('.card').forEach(el=>el.onclick=()=>selectTunnel(tunnels.find(t=>t.key===el.dataset.key)));
+      }
+    }
+    function updateTabs(){
+      document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===activeTab));
+    }
+
+    const fallbackTunnels = [
+      {key:'fallback-carmel',name:'Carmel Tunnels / מנהרות הכרמל',lat:32.7938,lng:34.9880,kind:'road',kindLabel:'автодорожный',ref:'23',tunnel:'yes',operator:'Carmelton'},
+      {key:'fallback-harel',name:'Harel tunnels / מנהרות הראל',lat:31.8000,lng:35.1220,kind:'road',kindLabel:'автодорожный',ref:'1',tunnel:'yes'},
+      {key:'fallback-hwy16',name:'Highway 16 tunnels / מנהרות כביש 16',lat:31.7824,lng:35.1765,kind:'road',kindLabel:'автодорожный',ref:'16',tunnel:'yes'},
+      {key:'fallback-mesila-rail',name:'Jerusalem rail tunnel area',lat:31.7892,lng:35.2010,kind:'rail',kindLabel:'железнодорожный',ref:'rail',tunnel:'yes'}
+    ];
+
+    async function loadTunnels(){
+      const q='[out:json][timeout:25];area["ISO3166-1"="IL"][admin_level=2]->.a;(way(area.a)["tunnel"]["highway"];way(area.a)["tunnel"]["railway"];);out center tags;';
+      const endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+      let data=null, lastErr=null;
+      for(const url of endpoints){
+        try{
+          const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(q)});
+          if(!res.ok) throw new Error('HTTP '+res.status);
+          data=await res.json(); if(data?.elements?.length) break;
+        }catch(e){lastErr=e}
+      }
+      if(!data?.elements?.length){
+        tunnels=fallbackTunnels;
+        toast('Overpass не ответил — показываю резервный набор известных тоннелей');
+      }else{
+        tunnels=data.elements.map(x=>{
+          const c=x.center; const tags=x.tags||{}; if(!c||!Number.isFinite(c.lat)||!Number.isFinite(c.lon))return null;
+          const kind=tags.railway?'rail':'road';
+          return {
+            key:String(x.type)+'-'+x.id,lat:c.lat,lng:c.lon,kind,kindLabel:kind==='rail'?'железнодорожный':'автодорожный',
+            name:tags.name||tags['name:en']||tags['name:he']||'',ref:tags.ref||'',road:tags.highway||tags.railway||'',
+            tunnel:tags.tunnel||'',lit:tags.lit||'',maxspeed:tags.maxspeed||'',operator:tags.operator||''
+          };
+        }).filter(Boolean).filter(t=>t.tunnel!=='no');
+        tunnels.sort((a,b)=>(a.kind===b.kind?0:(a.kind==='road'?-1:1))||(a.name||'zzz').localeCompare(b.name||'zzz'));
+      }
+      els.tunnelCountTop.textContent=tunnels.length;
+      if(map.getSource('tunnels')) map.getSource('tunnels').setData(tunnelFeatures());
+      els.loading.style.display='none'; render();
+    }
+
+    map.on('load',()=>{
+      addLayers(); render(); loadTunnels();
+    });
+
+    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{activeTab=b.dataset.tab;updateTabs();render()}));
+    document.getElementById('resetView').onclick=()=>map.flyTo({...ISRAEL_VIEW,duration:1200});
+    document.getElementById('closePeek').onclick=()=>els.peek.classList.remove('show');
+    els.focusMain.onclick=focusSelected;
+
+    // Deep link: ?route=rg-yarkon-sea
+    const wanted=new URLSearchParams(location.search).get('route');
+    if(wanted){const r=routes.find(x=>x.id===wanted); if(r) setTimeout(()=>selectRoute(r),1000)}
+  })();
+  </script>
+</body>
+</html>
